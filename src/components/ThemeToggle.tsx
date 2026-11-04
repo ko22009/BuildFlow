@@ -30,6 +30,7 @@ export function ThemeToggle() {
       className="btn ghost small theme-toggle"
       onClick={toggle}
       title="Переключить тему"
+      aria-pressed={theme === 'dark'}
       aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
     >
       {theme === 'dark' ? 'Светлая' : 'Тёмная'}

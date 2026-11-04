@@ -8,9 +8,13 @@ interface Props {
 }
 
 export function TaskFilters({ executors, objects }: Props) {
-  const { status, assignee, object, set } = useTaskFilters()
+  const { status, search, assignee, object, set } = useTaskFilters()
   return (
     <div className="filters">
+      <label>
+        Поиск по названию
+        <input type="search" value={search} onChange={(e) => set('search', e.target.value)} />
+      </label>
       <label>
         Статус
         <select value={status} onChange={(e) => set('status', e.target.value)}>

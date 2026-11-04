@@ -8,10 +8,11 @@ export function Layout() {
   const isManager = profile.role === 'manager'
   return (
     <div className="shell">
+      <a className="skip-link" href="#main-content">Перейти к содержимому</a>
       <header className="topbar">
         <div className="topbar-inner">
           <span className="brand">BuildFlow</span>
-          <nav>
+          <nav aria-label="Основная навигация">
             {!isManager ? <NavLink to="/my">Мои задачи</NavLink> : null}
             <NavLink to="/objects">Объекты</NavLink>
             {isManager ? <NavLink to="/tasks">Все задачи</NavLink> : null}
@@ -29,7 +30,7 @@ export function Layout() {
           </div>
         </div>
       </header>
-      <main className="page">
+      <main id="main-content" className="page" tabIndex={-1}>
         <Outlet />
       </main>
     </div>

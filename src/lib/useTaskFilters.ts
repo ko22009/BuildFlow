@@ -5,6 +5,7 @@ import { isUuid, parseStatus } from './queryParams'
 export function useTaskFilters() {
   const [params, setParams] = useSearchParams()
   const status = parseStatus(params.get('status'))
+  const search = params.get('search') ?? ''
   const rawAssignee = params.get('assignee') ?? ''
   const assignee = isUuid(rawAssignee) ? rawAssignee : ''
   const rawObject = params.get('object') ?? ''
@@ -20,16 +21,17 @@ export function useTaskFilters() {
 
   // Фильтры применяются в запросе к базе, а не в браузере.
   // withObject: false нужен странице объекта, где объект уже задан адресом.
-  const apply = <Q extends { eq: (column: string, value: string) => Q }>(
+  const apply = <Q extends { eq: (column: string, value: string) => Q; ilike: (column: string, value: string) => Q }>(
     query: Q,
     options: { withObject?: boolean } = {},
   ): Q => {
     let q = query
+    if (search.trim()) q = q.ilike('title', `%${search.trim().replace(/[\\%_]/g, '\\$&')}%`)
     if (status) q = q.eq('status', status)
     if (assignee) q = q.eq('assignee_id', assignee)
     if (options.withObject !== false && object) q = q.eq('object_id', object)
     return q
   }
 
-  return { status, assignee, object, set, apply, active: Boolean(status || assignee || object) }
+  return { status, search, assignee, object, set, apply, active: Boolean(status || assignee || object || search.trim()) }
 }

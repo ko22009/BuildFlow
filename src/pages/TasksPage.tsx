@@ -48,7 +48,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
         objects: unwrap(objects) as { id: string; name: string }[],
       }
     },
-    [page, filters.status, filters.assignee, filters.object, mine],
+    [page, filters.status, filters.search, filters.assignee, filters.object, mine],
   )
 
   const exportXlsx = async () => {
@@ -73,7 +73,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
     }
   }
 
-  if (loading && !data) return <p className="empty">Загрузка…</p>
+  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
   if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data) return null
 
@@ -84,7 +84,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
       <div className="page-head">
         <div>
           <h1>{mine ? 'Мои задачи' : 'Все задачи'}</h1>
-          <p className="muted">{filters.active ? `Найдено задач: ${data.total}` : `Всего задач: ${data.total}`}</p>
+          <p className="muted" role="status" aria-busy={loading}>{filters.active ? `Найдено задач: ${data.total}` : `Всего задач: ${data.total}`}</p>
         </div>
         {isManager ? (
           <button className="btn ghost" disabled={data.total === 0 || exporting} onClick={() => void exportXlsx()}>
@@ -92,6 +92,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
           </button>
         ) : null}
       </div>
+      <p className="sr-only" role="status">{exporting ? 'Выгрузка…' : ''}</p>
       {exportError ? (
         <p className="error" role="alert">
           {exportError}

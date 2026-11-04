@@ -43,12 +43,13 @@ export function TrashPage() {
     }
   }
 
-  if (loading && !data) return <p className="empty">Загрузка…</p>
+  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
   if (loadError) return <ErrorNotice text={loadError} onRetry={reload} />
   const empty = data && data.objects.length === 0 && data.tasks.length === 0
 
   return (
     <>
+      <p className="sr-only" role="status">{busyKey ? 'Восстановление…' : ''}</p>
       <div className="page-head">
         <h1>Корзина</h1>
       </div>

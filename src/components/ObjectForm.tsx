@@ -49,7 +49,8 @@ export function ObjectForm({ id, name = '', address = '', submitLabel, onDone, o
         Адрес
         <input value={a} onChange={(e) => setA(e.target.value)} required maxLength={300} />
       </label>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error" role="alert">{error}</p> : null}
+      <p className="sr-only" role="status">{busy ? 'Сохранение…' : ''}</p>
       <div className="actions">
         <button className="btn primary" disabled={busy}>
           {submitLabel}

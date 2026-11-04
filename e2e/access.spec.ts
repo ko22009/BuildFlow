@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { mockSupabase } from './mock'
+import { proxySupabase } from './helpers'
 
 // Тема в тестах должна быть предсказуемой, иначе кнопка называется по-разному.
 test.use({ colorScheme: 'light' })
 
 // Неверный пароль проверяется на настоящем Supabase: ответ об ошибке входа приходит от него.
 test('неверный пароль: понятное сообщение, вход не выполнен', async ({ page }) => {
+  await proxySupabase(page)
   await page.goto('/')
   await page.getByLabel('Почта').fill('manager1@example.com')
   await page.getByLabel('Пароль').fill('неверный-пароль')

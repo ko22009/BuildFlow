@@ -11,7 +11,7 @@ import { TrashPage } from './pages/TrashPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { loading, session, profile } = useAuth()
-  if (loading) return <p className="empty">Загрузка…</p>
+  if (loading) return <p className="empty" role="status">Загрузка…</p>
   if (!session || !profile) return <Navigate to="/login" replace />
   return children
 }

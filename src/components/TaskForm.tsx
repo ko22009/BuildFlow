@@ -103,7 +103,8 @@ export function TaskForm({ initial, objects, executors, assigneeLocked, objectLo
         </label>
       </div>
       {assigneeLocked ? <p className="hint">Исполнителя можно сменить, пока задача новая или на доработке.</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error" role="alert">{error}</p> : null}
+      <p className="sr-only" role="status">{busy ? 'Сохранение…' : ''}</p>
       <div className="actions">
         <button className="btn primary" disabled={busy}>
           {submitLabel}

@@ -48,7 +48,7 @@ export function ObjectPage() {
       total: tasks.count ?? 0,
       executors: unwrap(executors) as Profile[],
     }
-  }, [id, page, filters.status, filters.assignee, isManager])
+  }, [id, page, filters.status, filters.search, filters.assignee, isManager])
 
   const remove = async () => {
     setDeleteError(null)
@@ -70,15 +70,16 @@ export function ObjectPage() {
     navigate('/objects', { replace: true })
   }
 
-  if (loading && !data) return <p className="empty">Загрузка…</p>
+  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
   if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data?.object) return <p className="empty">Объект не найден или недоступен.</p>
 
   const { object, tasks, total, executors } = data
-  const filtersActive = Boolean(filters.status || filters.assignee)
+  const filtersActive = Boolean(filters.status || filters.assignee || filters.search.trim())
 
   return (
     <>
+      <p className="sr-only" role="status">{busy ? 'Удаление…' : ''}</p>
       <p className="crumbs">
         <Link to="/objects">Объекты</Link>
       </p>

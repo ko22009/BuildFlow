@@ -54,3 +54,36 @@ test('страница вне диапазона возвращается к п�
   await expect(page).toHaveURL(/page=3/)
   await expect(page.locator('.task-row')).toHaveCount(5)
 })
+
+for (const path of ['/tasks', '/objects/00000000-0000-4000-8000-0000000000aa']) {
+  test(`поиск по названию: адрес, первая страница и буквальные спецсимволы (${path})`, async ({ page }) => {
+    const queries: URLSearchParams[] = []
+    const title = 'Монтаж 50%_\\готово'
+    await mockSupabase(page, 'manager', {
+      tasks: [...TASKS, { ...TASKS[0], id: '00000000-0000-4000-8000-000000000099', title, status: 'review' },
+        { ...TASKS[1], title: 'Монтаж 500Аготово', status: 'review' }],
+      objects: [{ id: '00000000-0000-4000-8000-0000000000aa', name: 'Объект', address: 'Адрес', deleted_at: null, created_at: '2026-11-01' }],
+      onTasksQuery: (q) => queries.push(q),
+    })
+    await page.goto(`${path}?page=2`)
+    await expect(page.getByText('Страница 2 из 3')).toBeVisible()
+    await page.getByLabel('Поиск по названию').fill('50%_\\')
+    await expect(page.locator('.task-row')).toHaveCount(1)
+    await expect(page.locator('.task-row')).toContainText(title)
+    expect(new URL(page.url()).searchParams.get('search')).toBe('50%_\\')
+    expect(new URL(page.url()).searchParams.has('page')).toBe(false)
+    expect(queries.some((q) => q.get('title') === 'ilike.%50\\%\\_\\\\%' && q.get('offset') === '0')).toBe(true)
+    await page.getByLabel('Статус').selectOption('review')
+    await page.reload()
+    await expect(page.getByLabel('Поиск по названию')).toHaveValue('50%_\\')
+    await expect(page.getByLabel('Статус')).toHaveValue('review')
+    await expect(page.locator('.task-row')).toHaveCount(1)
+    await page.getByLabel('Поиск по названию').fill('нет совпадений')
+    await expect(page.getByText('Под фильтр ничего не подходит.')).toBeVisible()
+    await page.getByLabel('Поиск по названию').fill('тЕСТОВАЯ')
+    await expect(page.locator('.task-row')).toHaveCount(9)
+    await page.getByLabel('Поиск по названию').fill('')
+    expect(new URL(page.url()).searchParams.has('search')).toBe(false)
+    await expect(page.locator('.task-row')).toHaveCount(11)
+  })
+}

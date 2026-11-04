@@ -26,6 +26,23 @@ export function TaskPhotos({ taskId, canUpload, canDelete, uploadHint }: Props) 
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
   const input = useRef<HTMLInputElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+  const opener = useRef<HTMLButtonElement | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
+  const activePhoto = selected === null ? undefined : photos[selected]
+  const isOpen = selected !== null
+
+  useEffect(() => {
+    if (!isOpen) return
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = overflow }
+  }, [isOpen])
+
+  const step = (direction: number) => {
+    if (photos.length < 2) return
+    setSelected((index) => index === null ? null : (index + direction + photos.length) % photos.length)
+  }
 
   // Список фото перечитывается после загрузки и удаления: tick меняет запрос.
   const reload = () => {
@@ -126,14 +143,19 @@ export function TaskPhotos({ taskId, canUpload, canDelete, uploadHint }: Props) 
   return (
     <section>
       <h2>Фото</h2>
-      {!loaded ? <p className="empty compact">Загрузка…</p> : null}
+      {!loaded ? <p className="empty compact" role="status">Загрузка…</p> : null}
       {loaded && photos.length === 0 ? <p className="empty compact">Фото пока нет.</p> : null}
       <ul className="photos">
-        {photos.map((p) => (
+        {photos.map((p, index) => (
           <li key={p.path}>
-            <a href={p.url} target="_blank" rel="noopener noreferrer">
-              <img src={p.url} alt="Фото к задаче" loading="lazy" />
-            </a>
+            <button type="button" className="photo-preview" aria-label={`Открыть фото ${index + 1}`}
+              onClick={(event) => {
+                opener.current = event.currentTarget
+                setSelected(index)
+                dialog.current?.showModal()
+              }}>
+              <img src={p.url} alt={`Фото к задаче ${index + 1}`} loading="lazy" />
+            </button>
             {canDelete ? (
               <button className="btn ghost danger small" disabled={busy} onClick={() => void remove(p.path)}>
                 Удалить
@@ -142,6 +164,50 @@ export function TaskPhotos({ taskId, canUpload, canDelete, uploadHint }: Props) 
           </li>
         ))}
       </ul>
+      <dialog ref={dialog} className="photo-dialog" aria-label="Просмотр фото задачи" aria-modal="true"
+        onClose={() => {
+          setSelected(null)
+          opener.current?.focus()
+        }}
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return
+          const rect = event.currentTarget.getBoundingClientRect()
+          if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
+            event.currentTarget.close()
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Tab') {
+            const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+            const first = buttons[0]
+            const last = buttons[buttons.length - 1]
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault()
+              last?.focus()
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault()
+              first?.focus()
+            }
+          }
+          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            event.preventDefault()
+            step(event.key === 'ArrowLeft' ? -1 : 1)
+          }
+        }}>
+        <div className="photo-dialog-content">
+          <div className="actions">
+            <button type="button" className="btn" onClick={() => dialog.current?.close()}>Закрыть</button>
+            {photos.length > 1 ? (
+              <>
+                <button type="button" className="btn" aria-label="Предыдущее фото" onClick={() => step(-1)}>←</button>
+                <button type="button" className="btn" aria-label="Следующее фото" onClick={() => step(1)}>→</button>
+              </>
+            ) : null}
+            <span role="status">{selected === null ? '' : `Фото ${selected + 1} из ${photos.length}`}</span>
+          </div>
+          {activePhoto ? <img src={activePhoto.url} alt={`Фото к задаче ${(selected ?? 0) + 1}`} /> : null}
+        </div>
+      </dialog>
       {error ? (
         <p className="error" role="alert">
           {error}
@@ -152,12 +218,13 @@ export function TaskPhotos({ taskId, canUpload, canDelete, uploadHint }: Props) 
           <input
             ref={input}
             type="file"
+            aria-label="Добавить фото"
             accept="image/jpeg,image/png,image/webp"
             multiple
             disabled={busy}
             onChange={(e) => void upload(e.target.files)}
           />
-          <span className="btn">{busy ? 'Загрузка…' : 'Добавить фото'}</span>
+          <span className="btn" role="status">{busy ? 'Загрузка…' : 'Добавить фото'}</span>
         </label>
       ) : (
         <p className="hint">{uploadHint ?? 'Фото можно добавлять, пока задача в работе или на доработке.'}</p>

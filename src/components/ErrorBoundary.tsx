@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       <div className="login">
         <div className="card">
           <h1>Что-то пошло не так</h1>
-          <p className="muted">Обновите страницу. Если ошибка повторяется, сообщите администратору.</p>
+          <p className="muted" role="alert">Обновите страницу. Если ошибка повторяется, сообщите администратору.</p>
           <div className="actions">
             <button className="btn primary" onClick={() => window.location.reload()}>
               Обновить

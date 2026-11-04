@@ -77,7 +77,7 @@ export function ObjectsPage() {
         />
       ) : null}
 
-      {loading && !data ? <p className="empty">Загрузка…</p> : null}
+      {loading && !data ? <p className="empty" role="status">Загрузка…</p> : null}
       {error ? <ErrorNotice text={error} onRetry={reload} /> : null}
       {data && data.objects.length === 0 ? (
         <p className="empty">

@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test'
+import type { ChangeRow, HistoryRow, ObjectRow } from '../src/lib/types'
 
 // Заглушка Supabase для проверок интерфейса: без сети, без входа и без изменения данных.
 // Сессия кладётся в localStorage, ответы API отдаёт обработчик ниже.
@@ -42,8 +43,36 @@ function taskRow(t: MockTask) {
 
 export interface MockOptions {
   tasks?: MockTask[]
+  objects?: ObjectRow[]
+  history?: HistoryRow[]
+  changes?: ChangeRow[]
+  photos?: string[]
   // Вызывается при каждом запросе списка задач с параметрами адреса (фильтры, offset, limit).
   onTasksQuery?: (params: URLSearchParams) => void
+}
+
+function matchesIlike(value: string, pattern: string): boolean {
+  let expression = ''
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i]
+    if (char === '\\' && i + 1 < pattern.length) {
+      expression += pattern[++i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    } else if (char === '%' || char === '*') expression += '.*'
+    else if (char === '_') expression += '.'
+    else expression += char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+  return new RegExp(`^${expression}$`, 'isu').test(value)
+}
+
+function ordered<T extends { id: number; created_at: string }>(rows: T[], order: string | null): T[] {
+  return [...rows].sort((a, b) => {
+    for (const part of (order ?? '').split(',')) {
+      const [field, direction] = part.split('.')
+      const diff = field === 'id' ? a.id - b.id : a.created_at.localeCompare(b.created_at)
+      if (diff) return direction === 'desc' ? -diff : diff
+    }
+    return 0
+  })
 }
 
 // Включает заглушку на странице до первого перехода. Возвращает ничего: все данные задаются options.
@@ -69,6 +98,20 @@ export async function mockSupabase(page: Page, role: MockRole, options: MockOpti
 
   await page.route('**/auth/v1/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: '{}' }))
 
+  await page.route('**/storage/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path.includes('/object/list/')) return reply(route, (options.photos ?? []).map((name) => ({ name })))
+    if (route.request().method() === 'POST' && path.includes('/object/sign/')) {
+      const { paths } = route.request().postDataJSON() as { paths: string[] }
+      return reply(route, paths.map((p) => ({ path: p, signedURL: `/object/sign/task-photos/${p}?token=stub`, error: null })))
+    }
+    if (path.includes('/object/sign/')) {
+      return route.fulfill({ contentType: 'image/svg+xml', headers: CORS,
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#1d4f8c"/><path d="M100 450L400 150L700 450Z" fill="#dde9f8"/></svg>' })
+    }
+    return reply(route, [])
+  })
+
   await page.route('**/rest/v1/**', async (route) => {
     const req = route.request()
     const u = new URL(req.url())
@@ -83,8 +126,15 @@ export async function mockSupabase(page: Page, role: MockRole, options: MockOpti
       if (req.method() === 'HEAD') return reply(route, [], 0)
       options.onTasksQuery?.(q)
       let rows = options.tasks ?? []
+      const id = q.get('id')?.replace('eq.', '')
+      if (id) {
+        const task = rows.find((t) => t.id === id)
+        return reply(route, task ? taskRow(task) : null)
+      }
       const status = q.get('status')?.replace('eq.', '')
       if (status) rows = rows.filter((t) => t.status === status)
+      const title = q.get('title')
+      if (title?.startsWith('ilike.')) rows = rows.filter((t) => matchesIlike(t.title, title.slice(6)))
       const from = Number(q.get('offset') ?? 0)
       const limit = Number(q.get('limit') ?? rows.length)
       const page = rows.slice(from, from + limit).map(taskRow)
@@ -95,6 +145,12 @@ export async function mockSupabase(page: Page, role: MockRole, options: MockOpti
         body: JSON.stringify(page),
       })
     }
+    if (table === 'objects') {
+      const id = q.get('id')?.replace('eq.', '')
+      return reply(route, id ? options.objects?.find((o) => o.id === id) ?? null : options.objects ?? [])
+    }
+    if (table === 'task_history') return reply(route, ordered(options.history ?? [], q.get('order')))
+    if (table === 'task_changes') return reply(route, ordered(options.changes ?? [], q.get('order')))
     return reply(route, []) // объекты, счётчики и всё остальное: пусто
   })
 }

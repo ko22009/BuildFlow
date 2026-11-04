@@ -49,13 +49,14 @@ export function LoginPage() {
           </p>
         ) : null}
         {!loading && session && !profile ? (
-          <p className="error">
+          <p className="error" role="alert">
             {profileError ?? 'Для этой учётной записи не назначена роль. Обратитесь к администратору.'}
           </p>
         ) : null}
         <button className="btn primary" disabled={wait}>
           {wait ? 'Вход…' : 'Войти'}
         </button>
+        <p className="sr-only" role="status">{wait ? 'Вход…' : ''}</p>
         {session && !loading ? (
           <button type="button" className="btn ghost" onClick={() => void signOut()}>
             Выйти

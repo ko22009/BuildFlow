@@ -49,7 +49,7 @@ test('задача проходит путь: создание, правка, р
   await expect(manager.getByText('Напишите комментарий')).toBeVisible()
   await manager.getByLabel(/Комментарий/).fill('Не хватает фото')
   await manager.getByRole('button', { name: 'Вернуть на доработку' }).click()
-  await expect(manager.locator('.history').first()).toContainText('Не хватает фото')
+  await expect(manager.locator('.history').first().locator('li').first()).toContainText('Не хватает фото')
 
   // Исполнитель повторяет цикл, менеджер принимает.
   await executor.goto(taskUrl)
@@ -61,7 +61,8 @@ test('задача проходит путь: создание, правка, р
   await manager.getByRole('button', { name: 'Принять', exact: true }).click()
   await expect(manager.getByText('Принять работу?')).toBeVisible()
   await manager.getByRole('button', { name: 'Да, принять' }).click()
-  await expect(manager.locator('.history').first()).toContainText('Принята')
+  await expect(manager.locator('.history').first().locator('li').first()).toContainText('Принята')
+  await expect(manager.locator('.history').first().locator('li').last()).toContainText('создана')
 
   // Удаление уходит в корзину, а не стирает историю.
   await manager.getByRole('button', { name: 'Удалить' }).click()

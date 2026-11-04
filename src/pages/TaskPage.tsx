@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { ErrorNotice } from '../components/ErrorNotice'
@@ -25,6 +25,23 @@ function showValue(field: ChangedField, value: string | null): string {
   return field === 'due_date' ? formatDate(value) : value
 }
 
+function ChangeValue({ value, className }: { value: string; className?: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const id = useId()
+  const long = value.length > 180
+  return (
+    <span>
+      <span id={id} className={className}>{long && !expanded ? `${value.slice(0, 180)}…` : value}</span>
+      {long ? (
+        <button type="button" className="btn ghost small change-toggle" aria-expanded={expanded} aria-controls={id}
+          onClick={() => setExpanded((current) => !current)}>
+          {expanded ? 'Свернуть' : 'Показать полностью'}
+        </button>
+      ) : null}
+    </span>
+  )
+}
+
 export function TaskPage() {
   const { id = '' } = useParams()
   const { profile } = useAuth()
@@ -44,14 +61,14 @@ export function TaskPage() {
         .from('task_history')
         .select('id, old_status, new_status, comment, created_at, changer:profiles!changed_by(full_name)')
         .eq('task_id', id)
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true }),
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false }),
       supabase
         .from('task_changes')
         .select('id, field, old_value, new_value, created_at, changer:profiles!changed_by(full_name)')
         .eq('task_id', id)
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true }),
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false }),
       isManager
         ? supabase.from('objects').select('id, name').is('deleted_at', null).order('name')
         : Promise.resolve({ data: [], error: null }),
@@ -68,7 +85,7 @@ export function TaskPage() {
     }
   }, [id, isManager])
 
-  if (loading && !data) return <p className="empty">Загрузка…</p>
+  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
   if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data?.task || !profile) return <p className="empty">Задача не найдена или недоступна.</p>
 
@@ -126,6 +143,7 @@ export function TaskPage() {
 
   return (
     <>
+      <p className="sr-only" role="status">{busy ? 'Выполнение действия…' : ''}</p>
       <p className="crumbs">
         <Link to="/objects">Объекты</Link> /{' '}
         {objectDeleted ? (
@@ -307,9 +325,9 @@ export function TaskPage() {
                   <b>{FIELD_LABEL[c.field]}</b>
                 </div>
                 <p className="change">
-                  <span className="old-value">{showValue(c.field, c.old_value)}</span>
+                  <ChangeValue className="old-value" value={showValue(c.field, c.old_value)} />
                   <span aria-hidden="true"> → </span>
-                  <span>{showValue(c.field, c.new_value)}</span>
+                  <ChangeValue value={showValue(c.field, c.new_value)} />
                 </p>
                 <div className="muted">
                   {c.changer?.full_name} · {formatDateTime(c.created_at)}
