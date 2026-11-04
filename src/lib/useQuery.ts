@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { humanError } from './errors'
 
 interface QueryState<T> {
   data: T | null
@@ -25,7 +26,7 @@ export function useQuery<T>(load: () => Promise<T>, deps: unknown[]): QueryState
       })
       .catch((e: unknown) => {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : String(e))
+        setError(humanError(e, 'Не удалось загрузить данные. Проверьте подключение и попробуйте ещё раз.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

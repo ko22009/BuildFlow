@@ -27,6 +27,13 @@ function ManagerOnly({ children }: { children: ReactNode }) {
   return children
 }
 
+// «Мои задачи» это экран исполнителя. Менеджеру там делать нечего: у него есть «Все задачи».
+function ExecutorOnly({ children }: { children: ReactNode }) {
+  const { profile } = useAuth()
+  if (profile?.role === 'manager') return <Navigate to="/tasks" replace />
+  return children
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -41,7 +48,14 @@ export default function App() {
             }
           >
             <Route path="/" element={<Home />} />
-            <Route path="/my" element={<TasksPage mine />} />
+            <Route
+              path="/my"
+              element={
+                <ExecutorOnly>
+                  <TasksPage mine />
+                </ExecutorOnly>
+              }
+            />
             <Route
               path="/tasks"
               element={

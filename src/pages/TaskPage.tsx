@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { ErrorNotice } from '../components/ErrorNotice'
 import { StatusBadge } from '../components/StatusBadge'
 import { TaskForm } from '../components/TaskForm'
 import { TaskPhotos } from '../components/TaskPhotos'
+import { humanError } from '../lib/errors'
 import { actionsFor, formatDate, formatDateTime, isOverdue, type Status } from '../lib/status'
 import { isUuid } from '../lib/queryParams'
 import { supabase } from '../lib/supabase'
@@ -29,6 +31,7 @@ export function TaskPage() {
   const navigate = useNavigate()
   const isManager = profile?.role === 'manager'
   const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view')
+  const [confirmDone, setConfirmDone] = useState(false)
   const [comment, setComment] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -66,15 +69,19 @@ export function TaskPage() {
   }, [id, isManager])
 
   if (loading && !data) return <p className="empty">Загрузка…</p>
-  if (error) return <p className="error">{error}</p>
+  if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data?.task || !profile) return <p className="empty">Задача не найдена или недоступна.</p>
 
   const { task, history, changes, objects, executors } = data
   const isDeleted = task.deleted_at !== null
   const actions = isDeleted ? [] : actionsFor(profile.role, task.status)
   const canAddPhotos = !isDeleted && (isManager || task.status === 'in_progress' || task.status === 'rework')
+  const photoHint = isDeleted
+    ? 'Задача удалена, добавлять фото нельзя.'
+    : 'Фото можно добавлять, пока задача в работе или на доработке.'
   const overdue = isOverdue(task.due_date, task.status)
   const reassignable = task.status === 'new' || task.status === 'rework'
+  const objectDeleted = Boolean(task.object?.deleted_at)
 
   const changeStatus = async (to: Status, commentRequired: boolean) => {
     if (commentRequired && !comment.trim()) {
@@ -90,10 +97,11 @@ export function TaskPage() {
     })
     setBusy(false)
     if (err) {
-      setActionError(err.message)
+      setActionError(humanError(err, 'Не удалось сменить статус. Обновите страницу и попробуйте снова.'))
       return
     }
     setComment('')
+    setConfirmDone(false)
     reload()
   }
 
@@ -106,7 +114,7 @@ export function TaskPage() {
       .select('id')
     setBusy(false)
     if (err) {
-      setActionError(err.message)
+      setActionError(humanError(err, 'Не удалось удалить задачу. Обновите страницу и попробуйте снова.'))
       return
     }
     if (!removed?.length) {
@@ -119,7 +127,12 @@ export function TaskPage() {
   return (
     <>
       <p className="crumbs">
-        <Link to="/objects">Объекты</Link> / <Link to={`/objects/${task.object_id}`}>{task.object?.name ?? 'Объект'}</Link>
+        <Link to="/objects">Объекты</Link> /{' '}
+        {objectDeleted ? (
+          <span>{task.object?.name ?? 'Объект'} (в корзине)</span>
+        ) : (
+          <Link to={`/objects/${task.object_id}`}>{task.object?.name ?? 'Объект'}</Link>
+        )}
       </p>
 
       {mode === 'edit' ? (
@@ -145,10 +158,10 @@ export function TaskPage() {
           </div>
           {isManager && !isDeleted ? (
             <div className="actions">
-              <button className="btn ghost" onClick={() => setMode('edit')}>
+              <button className="btn ghost" onClick={() => { setConfirmDone(false); setMode('edit') }}>
                 Изменить
               </button>
-              <button className="btn ghost danger" onClick={() => setMode('delete')}>
+              <button className="btn ghost danger" onClick={() => { setConfirmDone(false); setMode('delete') }}>
                 Удалить
               </button>
             </div>
@@ -205,32 +218,65 @@ export function TaskPage() {
         </dl>
       </section>
 
-      <TaskPhotos key={task.id} taskId={task.id} canUpload={canAddPhotos} canDelete={isManager && !isDeleted} />
-
       {actions.length > 0 ? (
         <section className="card action-box">
           <h2>Действие</h2>
           <label>
-            Комментарий{actions.some((a) => a.commentRequired) ? ' (при возврате обязателен)' : ' (необязательно)'}
+            Комментарий
+            {actions.some((a) => a.commentRequired) ? ' (при возврате обязателен)' : ' (необязательно)'}
             <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} />
           </label>
-          {actionError ? <p className="error">{actionError}</p> : null}
-          <div className="actions">
-            {actions.map((a, i) => (
-              <button
-                key={a.to}
-                className={`btn ${i === 0 ? 'primary' : 'ghost'}`}
-                disabled={busy}
-                onClick={() => void changeStatus(a.to, a.commentRequired)}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
+          {actionError ? (
+            <p className="error" role="alert">
+              {actionError}
+            </p>
+          ) : null}
+          {confirmDone ? (
+            <div className="confirm">
+              <p>Принять работу? Задача станет «Принята», вернуть её на доработку уже нельзя.</p>
+              {comment.trim() ? <p className="hint">Комментарий попадёт в историю: {comment.trim()}</p> : null}
+              <div className="actions">
+                <button className="btn primary" disabled={busy} onClick={() => void changeStatus('done', false)}>
+                  Да, принять
+                </button>
+                <button className="btn ghost" onClick={() => setConfirmDone(false)}>
+                  Отмена
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="actions">
+              {actions.map((a, i) => (
+                <button
+                  key={a.to}
+                  className={`btn ${i === 0 ? 'primary' : 'ghost'}`}
+                  disabled={busy}
+                  onClick={() => {
+                    if (a.to === 'done') {
+                      setActionError(null)
+                      setConfirmDone(true)
+                    } else void changeStatus(a.to, a.commentRequired)
+                  }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       ) : actionError ? (
-        <p className="error">{actionError}</p>
+        <p className="error" role="alert">
+          {actionError}
+        </p>
       ) : null}
+
+      <TaskPhotos
+        key={task.id}
+        taskId={task.id}
+        canUpload={canAddPhotos}
+        canDelete={isManager}
+        uploadHint={photoHint}
+      />
 
       <section>
         <h2>История</h2>

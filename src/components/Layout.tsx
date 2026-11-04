@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -17,6 +18,7 @@ export function Layout() {
             {isManager ? <NavLink to="/trash">Корзина</NavLink> : null}
           </nav>
           <div className="user">
+            <ThemeToggle />
             <span>
               {profile.full_name}
               <small>{isManager ? 'менеджер' : 'исполнитель'}</small>

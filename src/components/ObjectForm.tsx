@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../auth'
+import { humanError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 
 interface Props {
@@ -28,7 +29,7 @@ export function ObjectForm({ id, name = '', address = '', submitLabel, onDone, o
       : await supabase.from('objects').insert({ ...payload, created_by: profile?.id }).select('id')
     setBusy(false)
     if (res.error) {
-      setError(res.error.message)
+      setError(humanError(res.error, 'Не удалось сохранить объект. Обновите страницу и попробуйте снова.'))
       return
     }
     if (!res.data?.length) {

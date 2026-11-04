@@ -144,13 +144,36 @@ check('фото: исполнитель не удаляет', ((await m.client.s
 check('удаление задачи исполнителем (deleted_at): отказ', denied(await e1.client.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', tid)))
 check('настоящее удаление строки менеджером: отказ', denied(await m.client.from('tasks').delete().eq('id', tid)))
 check('объект с активными задачами в корзину не уходит', denied(await m.client.from('objects').update({ deleted_at: new Date().toISOString() }).eq('id', obj.id)))
+
+console.log('\n-- Защита от задачи в удалённом объекте')
+const guardObject = await m.client
+  .from('objects')
+  .insert({ name: 'Проверка прав (временный объект)', address: 'ул. Проверочная, 1' })
+  .select('id')
+  .single()
+const guardId = guardObject.data?.id
+if (!guardId) throw new Error(`Не удалось создать временный объект: ${guardObject.error?.message ?? 'нет id'}`)
+check('пустой объект уходит в корзину', !(await m.client.from('objects').update({ deleted_at: new Date().toISOString() }).eq('id', guardId)).error)
+check(
+  'задачу в удалённый объект не создать',
+  denied(await m.client.from('tasks').insert({ title: 'x', object_id: guardId, assignee_id: e1.id })),
+)
+check(
+  'активную задачу в удалённый объект не перевести',
+  denied(await m.client.from('tasks').update({ object_id: guardId }).eq('id', tid)),
+)
+
 const trashed = await m.client.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', tid)
 check('менеджер отправляет задачу в корзину', !trashed.error)
+check(
+  'задачу нельзя восстановить в удалённый объект',
+  denied(await m.client.from('tasks').update({ deleted_at: null, object_id: guardId }).eq('id', tid)),
+)
 check('исполнитель не видит задачу из корзины', ((await e1.client.from('tasks').select('id').eq('id', tid)).data ?? []).length === 0)
 check('менеджер видит её в корзине', ((await m.client.from('tasks').select('id').eq('id', tid).not('deleted_at', 'is', null)).data ?? []).length === 1)
 const photos = (await m.client.storage.from('task-photos').list(tid)).data ?? []
 await m.client.storage.from('task-photos').remove(photos.map((p) => `${tid}/${p.name}`))
-console.log('(временная задача остаётся в корзине менеджера)')
+console.log('(временная задача и временный объект остаются в корзине менеджера)')
 
 console.log(failed ? `\nПровалено проверок: ${failed}` : '\nВсе проверки прошли')
 process.exit(failed ? 1 : 0)

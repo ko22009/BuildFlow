@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { humanError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 
 interface Photo {
@@ -10,6 +11,7 @@ interface Props {
   taskId: string
   canUpload: boolean
   canDelete: boolean
+  uploadHint?: string
 }
 
 const BUCKET = 'task-photos'
@@ -17,7 +19,7 @@ const MAX_BYTES = 5 * 1024 * 1024
 const LIST_LIMIT = 100
 const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
-export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
+export function TaskPhotos({ taskId, canUpload, canDelete, uploadHint }: Props) {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -45,7 +47,7 @@ export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
         })
         if (cancelled) return
         if (list.error) {
-          setError(list.error.message)
+          setError(humanError(list.error, 'Не удалось загрузить список фото.'))
           setLoaded(true)
           return
         }
@@ -64,7 +66,7 @@ export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
       const signed = await supabase.storage.from(BUCKET).createSignedUrls(paths, 3600)
       if (cancelled) return
       if (signed.error) {
-        setError(signed.error.message)
+        setError(humanError(signed.error, 'Не удалось открыть фото.'))
         setLoaded(true)
         return
       }
@@ -98,7 +100,7 @@ export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
         contentType: file.type,
       })
       if (err) {
-        setError(err.message)
+        setError(humanError(err, 'Не удалось загрузить фото.'))
         failed = true
         break
       }
@@ -115,7 +117,7 @@ export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
     setError(null)
     const { error: err } = await supabase.storage.from(BUCKET).remove([path])
     if (err) {
-      setError(err.message)
+      setError(humanError(err, 'Не удалось удалить фото.'))
       return
     }
     reload()
@@ -140,7 +142,11 @@ export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
           </li>
         ))}
       </ul>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
       {canUpload ? (
         <label className="upload">
           <input
@@ -154,7 +160,7 @@ export function TaskPhotos({ taskId, canUpload, canDelete }: Props) {
           <span className="btn">{busy ? 'Загрузка…' : 'Добавить фото'}</span>
         </label>
       ) : (
-        <p className="hint">Фото можно добавлять, пока задача в работе или на доработке.</p>
+        <p className="hint">{uploadHint ?? 'Фото можно добавлять, пока задача в работе или на доработке.'}</p>
       )}
     </section>
   )

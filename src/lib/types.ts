@@ -25,7 +25,7 @@ export interface TaskRow {
   due_date: string | null
   created_at: string
   deleted_at: string | null
-  object: { name: string } | null
+  object: { name: string; deleted_at?: string | null } | null
   assignee: { full_name: string } | null
   author: { full_name: string } | null
 }
@@ -51,4 +51,4 @@ export interface ChangeRow {
 }
 
 export const TASK_SELECT =
-  '*, object:objects(name), assignee:profiles!assignee_id(full_name), author:profiles!author_id(full_name)'
+  '*, object:objects(name, deleted_at), assignee:profiles!assignee_id(full_name), author:profiles!author_id(full_name)'

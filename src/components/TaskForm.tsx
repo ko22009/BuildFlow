@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { humanError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../lib/types'
 
@@ -48,7 +49,7 @@ export function TaskForm({ initial, objects, executors, assigneeLocked, objectLo
       : await supabase.from('tasks').insert(payload).select('id')
     setBusy(false)
     if (res.error) {
-      setError(res.error.message)
+      setError(humanError(res.error, 'Не удалось сохранить задачу. Обновите страницу и попробуйте снова.'))
       return
     }
     // update без .select() молча возвращает успех, даже если RLS не дала изменить строку.

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { humanError } from './errors'
 import { PAGE_SIZE, pageRange } from './paging'
 import { TASK_COLUMNS, tasksToSheet } from './xlsx'
 import { isUuid, parseStatus } from './queryParams'
@@ -60,6 +61,19 @@ describe('страницы списка', () => {
   it('диапазон строк для запроса', () => {
     expect(pageRange(1)).toEqual([0, PAGE_SIZE - 1])
     expect(pageRange(3)).toEqual([2 * PAGE_SIZE, 3 * PAGE_SIZE - 1])
+  })
+})
+
+describe('понятные ошибки', () => {
+  it('переводит частые ошибки базы', () => {
+    expect(humanError(new Error('assignee can be changed only for new or rework tasks'))).toContain('Исполнителя')
+    expect(humanError(new Error('a comment is required when sending a task back for rework'))).toContain('комментарий')
+    expect(humanError({ message: 'object has active tasks', code: '23503' })).toContain('активные задачи')
+    expect(humanError(new Error('Failed to fetch'))).toContain('связаться с сервером')
+  })
+
+  it('неизвестную ошибку заменяет общим текстом', () => {
+    expect(humanError(new Error('boom'))).toBe('Не удалось выполнить действие. Обновите страницу и попробуйте снова.')
   })
 })
 

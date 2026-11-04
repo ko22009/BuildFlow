@@ -59,6 +59,8 @@ test('задача проходит путь: создание, правка, р
 
   await manager.goto(taskUrl)
   await manager.getByRole('button', { name: 'Принять', exact: true }).click()
+  await expect(manager.getByText('Принять работу?')).toBeVisible()
+  await manager.getByRole('button', { name: 'Да, принять' }).click()
   await expect(manager.locator('.history').first()).toContainText('Принята')
 
   // Удаление уходит в корзину, а не стирает историю.

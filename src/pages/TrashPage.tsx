@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ErrorNotice } from '../components/ErrorNotice'
+import { humanError } from '../lib/errors'
 import { formatDateTime } from '../lib/status'
 import { supabase } from '../lib/supabase'
 import { TASK_SELECT, type ObjectRow, type TaskRow } from '../lib/types'
@@ -27,7 +30,7 @@ export function TrashPage() {
         .eq('id', id)
         .select('id')
       if (err) {
-        setError(err.message.includes('restore the object first') ? 'Сначала восстановите объект этой задачи.' : err.message)
+        setError(humanError(err, 'Не удалось восстановить запись. Обновите страницу и попробуйте снова.'))
         return
       }
       if (!restored?.length) {
@@ -41,7 +44,7 @@ export function TrashPage() {
   }
 
   if (loading && !data) return <p className="empty">Загрузка…</p>
-  if (loadError) return <p className="error">{loadError}</p>
+  if (loadError) return <ErrorNotice text={loadError} onRetry={reload} />
   const empty = data && data.objects.length === 0 && data.tasks.length === 0
 
   return (
@@ -49,7 +52,11 @@ export function TrashPage() {
       <div className="page-head">
         <h1>Корзина</h1>
       </div>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      ) : null}
       {empty ? <p className="empty">Корзина пуста.</p> : null}
 
       {data && data.objects.length > 0 ? (
@@ -85,7 +92,9 @@ export function TrashPage() {
             {data.tasks.map((t) => (
               <li key={t.id} className="task-row">
                 <div className="task-main">
-                  <span className="task-title">{t.title}</span>
+                  <Link className="task-title" to={`/tasks/${t.id}`}>
+                    {t.title}
+                  </Link>
                   <span className="task-meta">
                     <span>{t.object?.name}</span>
                     <span>{t.assignee?.full_name}</span>

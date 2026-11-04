@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { ErrorNotice } from '../components/ErrorNotice'
 import { ObjectForm } from '../components/ObjectForm'
 import { Pagination } from '../components/Pagination'
 import { pageRange, usePage } from '../lib/paging'
@@ -8,6 +9,7 @@ import { TaskFilters } from '../components/TaskFilters'
 import { TaskForm } from '../components/TaskForm'
 import { TaskList } from '../components/TaskList'
 import { isUuid } from '../lib/queryParams'
+import { humanError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 import { useTaskFilters } from '../lib/useTaskFilters'
 import { TASK_SELECT, type ObjectRow, type Profile, type TaskRow } from '../lib/types'
@@ -34,6 +36,7 @@ export function ObjectPage() {
           { withObject: false },
         )
         .order('created_at', { ascending: false })
+        .order('id')
         .range(...pageRange(page)),
       isManager
         ? supabase.from('profiles').select('id, full_name, role').eq('role', 'executor').order('full_name')
@@ -57,9 +60,7 @@ export function ObjectPage() {
       .select('id')
     setBusy(false)
     if (err) {
-      setDeleteError(
-        err.code === '23503' ? 'Нельзя удалить объект, на котором есть задачи. Сначала удалите задачи.' : err.message,
-      )
+      setDeleteError(humanError(err, 'Не удалось удалить объект. Обновите страницу и попробуйте снова.'))
       return
     }
     if (!removed?.length) {
@@ -70,7 +71,7 @@ export function ObjectPage() {
   }
 
   if (loading && !data) return <p className="empty">Загрузка…</p>
-  if (error) return <p className="error">{error}</p>
+  if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data?.object) return <p className="empty">Объект не найден или недоступен.</p>
 
   const { object, tasks, total, executors } = data
@@ -119,7 +120,11 @@ export function ObjectPage() {
       {mode === 'delete' ? (
         <div className="card confirm">
           <p>Удалить объект «{object.name}»? Он попадёт в корзину, оттуда его можно восстановить.</p>
-          {deleteError ? <p className="error">{deleteError}</p> : null}
+          {deleteError ? (
+            <p className="error" role="alert">
+              {deleteError}
+            </p>
+          ) : null}
           <div className="actions">
             <button className="btn danger-solid" disabled={busy} onClick={() => void remove()}>
               Да, удалить

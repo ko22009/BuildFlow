@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useAuth } from '../auth'
+import { ErrorNotice } from '../components/ErrorNotice'
 import { Pagination } from '../components/Pagination'
 import { pageRange, usePage } from '../lib/paging'
 import { TaskFilters } from '../components/TaskFilters'
 import { TaskList } from '../components/TaskList'
+import { humanError } from '../lib/errors'
 import { downloadTasksXlsx } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
 import { TASK_SELECT, type Profile, type TaskRow } from '../lib/types'
@@ -22,12 +24,15 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
   const [exporting, setExporting] = useState(false)
 
   // В «Моих задачах» сначала то, что требует действия (поле status_rank), затем новые.
+  // id в конце сортировки нужен как tiebreaker: created_at у демо-задач может совпадать.
   const taskQuery = () => {
     const q = filters.apply(supabase.from('tasks').select(TASK_SELECT, { count: 'exact' }).is('deleted_at', null))
-    return mine ? q.order('status_rank').order('created_at', { ascending: false }) : q.order('created_at', { ascending: false })
+    return mine
+      ? q.order('status_rank').order('created_at', { ascending: false }).order('id')
+      : q.order('created_at', { ascending: false }).order('id')
   }
 
-  const { data, error, loading } = useQuery(
+  const { data, error, loading, reload } = useQuery(
     async () => {
       const [from, to] = pageRange(page)
       const [tasks, executors, objects] = await Promise.all([
@@ -54,20 +59,22 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
       for (let from = 0; ; from += EXPORT_CHUNK) {
         const res = await taskQuery().range(from, from + EXPORT_CHUNK - 1)
         if (res.error) {
-          setExportError(res.error.message)
+          setExportError(humanError(res.error, 'Не удалось выгрузить файл. Попробуйте ещё раз.'))
           return
         }
         all.push(...(res.data as unknown as TaskRow[]))
         if (res.data.length < EXPORT_CHUNK) break
       }
       await downloadTasksXlsx('zadachi.xlsx', all)
+    } catch (e) {
+      setExportError(humanError(e, 'Не удалось выгрузить файл. Попробуйте ещё раз.'))
     } finally {
       setExporting(false)
     }
   }
 
   if (loading && !data) return <p className="empty">Загрузка…</p>
-  if (error) return <p className="error">{error}</p>
+  if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data) return null
 
   const isManager = profile?.role === 'manager'
@@ -85,7 +92,11 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
           </button>
         ) : null}
       </div>
-      {exportError ? <p className="error">{exportError}</p> : null}
+      {exportError ? (
+        <p className="error" role="alert">
+          {exportError}
+        </p>
+      ) : null}
       <TaskFilters executors={isManager ? data.executors : undefined} objects={data.objects} />
       <TaskList
         tasks={data.tasks}

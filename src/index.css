@@ -35,36 +35,34 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #16181b;
-    --surface: #1e2125;
-    --fg: #e8e6e0;
-    --muted: #9aa0a8;
-    --line: #33373d;
-    --accent: #7fb0ea;
-    --accent-fg: #10151b;
-    --danger: #ef8378;
-    --new-bg: #2a2d32;
-    --new-fg: #b4bac2;
-    --new-dot: #7d848d;
-    --progress-bg: #1d2f47;
-    --progress-fg: #8dbaf0;
-    --progress-dot: #4f8fe0;
-    --review-bg: #2c2542;
-    --review-fg: #b9a2f0;
-    --review-dot: #8f6ee0;
-    --rework-bg: #3d2a17;
-    --rework-fg: #f0b27a;
-    --rework-dot: #e8883a;
-    --done-bg: #1b3326;
-    --done-fg: #7fd29d;
-    --done-dot: #3fb06a;
-    --overdue-bg: #3f2220;
-    --overdue-fg: #f09a90;
-    --overdue-dot: #e5584c;
-    color-scheme: dark;
-  }
+:root[data-theme='dark'] {
+  --bg: #16181b;
+  --surface: #1e2125;
+  --fg: #e8e6e0;
+  --muted: #9aa0a8;
+  --line: #33373d;
+  --accent: #7fb0ea;
+  --accent-fg: #10151b;
+  --danger: #ef8378;
+  --new-bg: #2a2d32;
+  --new-fg: #b4bac2;
+  --new-dot: #7d848d;
+  --progress-bg: #1d2f47;
+  --progress-fg: #8dbaf0;
+  --progress-dot: #4f8fe0;
+  --review-bg: #2c2542;
+  --review-fg: #b9a2f0;
+  --review-dot: #8f6ee0;
+  --rework-bg: #3d2a17;
+  --rework-fg: #f0b27a;
+  --rework-dot: #e8883a;
+  --done-bg: #1b3326;
+  --done-fg: #7fd29d;
+  --done-dot: #3fb06a;
+  --overdue-bg: #3f2220;
+  --overdue-fg: #f09a90;
+  --overdue-dot: #e5584c;
+  color-scheme: dark;
 }
 
 * {
@@ -117,6 +115,13 @@ a {
 }
 .error {
   color: var(--danger);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.error .retry {
+  margin-left: auto;
 }
 .notice {
   background: var(--overdue-bg);
@@ -179,6 +184,9 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.user .theme-toggle {
+  white-space: nowrap;
 }
 .user small {
   display: block;
@@ -471,6 +479,15 @@ a.task-row:hover {
 }
 .task-title {
   font-weight: 500;
+}
+a.task-title {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+a.task-title:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 .task-meta {
   display: flex;

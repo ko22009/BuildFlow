@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { humanError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 
 export function LoginPage() {
@@ -23,7 +24,11 @@ export function LoginPage() {
     setBusy(false)
     if (!err) return
     // Сообщение про пароль уместно только при неверных данных, а не при обрыве сети.
-    setError(/invalid login credentials/i.test(err.message) ? 'Неверная почта или пароль.' : `Не удалось войти: ${err.message}`)
+    setError(
+      /invalid login credentials/i.test(err.message)
+        ? 'Неверная почта или пароль.'
+        : humanError(err, 'Не удалось войти. Проверьте подключение и попробуйте ещё раз.'),
+    )
   }
 
   return (
@@ -38,7 +43,11 @@ export function LoginPage() {
           Пароль
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
         </label>
-        {error ? <p className="error">{error}</p> : null}
+        {error ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
         {!loading && session && !profile ? (
           <p className="error">
             {profileError ?? 'Для этой учётной записи не назначена роль. Обратитесь к администратору.'}

@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { mockSupabase } from './mock'
 
+// Тема в тестах должна быть предсказуемой, иначе кнопка называется по-разному.
+test.use({ colorScheme: 'light' })
+
 // Неверный пароль проверяется на настоящем Supabase: ответ об ошибке входа приходит от него.
 test('неверный пароль: понятное сообщение, вход не выполнен', async ({ page }) => {
   await page.goto('/')
@@ -19,6 +22,14 @@ test('менеджер видит все разделы и кнопки упра
   await expect(nav.getByRole('link', { name: 'Корзина' })).toBeVisible()
   await expect(nav.getByRole('link', { name: 'Мои задачи' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Новый объект' })).toBeVisible()
+
+  // Прямой адрес «Мои задачи» менеджера переводит на «Все задачи».
+  await page.goto('/my')
+  await expect(page).toHaveURL(/\/tasks/)
+
+  // Переключатель темы меняет атрибут на html.
+  await page.getByRole('button', { name: 'Включить тёмную тему' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 })
 
 test('исполнитель видит только свои задачи и не видит управление', async ({ page }) => {

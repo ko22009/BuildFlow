@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { ErrorNotice } from '../components/ErrorNotice'
 import { ObjectForm } from '../components/ObjectForm'
 import { Pagination } from '../components/Pagination'
 import { pageRange, usePage } from '../lib/paging'
@@ -29,6 +30,7 @@ export function ObjectsPage() {
         .select('*', { count: 'exact' })
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
+        .order('id')
         .range(...pageRange(page)),
       isManager
         ? supabase.from('tasks').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'review')
@@ -76,7 +78,7 @@ export function ObjectsPage() {
       ) : null}
 
       {loading && !data ? <p className="empty">Загрузка…</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <ErrorNotice text={error} onRetry={reload} /> : null}
       {data && data.objects.length === 0 ? (
         <p className="empty">
           {isManager ? 'Объектов пока нет. Создайте первый кнопкой «Новый объект».' : 'У вас пока нет задач. Объекты появятся, когда менеджер назначит вам задачу.'}
