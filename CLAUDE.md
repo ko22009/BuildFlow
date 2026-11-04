@@ -10,10 +10,11 @@
 
 ## Команды
 - `npm run dev` (порт 5173), `npm run build` (типы + сборка)
+- `npm test` (логика, без сети) и `npm run test:e2e` (интерфейс в Chrome, около 20 с; в основном на заглушке `e2e/mock.ts`, в настоящий Supabase ходят только вход с неверным паролем и тест `workflow`). Chrome в этой сети запускается с флагом `--disable-features=AsyncDns,UseDnsHttpsSvcb` (иначе паузы по 19 с, уже в `playwright.config.ts`). `workflow` оставляет задачу «UI-тест …» в корзине менеджера (очистка: `delete from public.tasks where title like 'UI-тест%'`).
 - `npm run check:rights`: проверка защиты через API под тремя пользователями, около 2 минут, нужен `.env`. Каждый прогон оставляет по одной временной задаче «Проверка прав» в корзине менеджера (удалить: `delete from public.tasks where title like 'Проверка прав%'` в SQL Editor).
 
 ## Устройство
-- Все права и переходы статусов проверяет база: RLS + триггеры в `supabase/migrations/` (5 файлов, применять по порядку), демо-данные `supabase/seed.sql` (один раз).
+- Все права и переходы статусов проверяет база: RLS + триггеры в `supabase/migrations/` (6 файлов, применять по порядку), демо-данные `supabase/seed.sql` (один раз).
 - Роль пользователя: `private.app_role()` (закрытая схема). Смена статуса только через RPC `change_task_status`. История пишется триггером, через API её не изменить. Удаление объектов и задач это `deleted_at` (корзина), настоящего DELETE нет.
 - Фото: закрытый bucket `task-photos`, путь `<id задачи>/<файл>`.
 - Демо-пользователи (пароли в README): manager1/2@example.com, executor1/2@example.com.
