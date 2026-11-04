@@ -25,7 +25,6 @@ export function LoginPage() {
     <div className="login">
       <form className="card form" onSubmit={(e) => void submit(e)}>
         <h1>BuildFlow</h1>
-        <p className="hint">Объекты и задачи строительной компании. Вход только для сотрудников.</p>
         <label>
           Почта
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
