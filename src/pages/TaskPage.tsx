@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { TaskForm } from '../components/TaskForm'
 import { TaskPhotos } from '../components/TaskPhotos'
 import { actionsFor, formatDate, formatDateTime, isOverdue, type Status } from '../lib/status'
+import { isUuid } from '../lib/queryParams'
 import { supabase } from '../lib/supabase'
 import { TASK_SELECT, type ChangedField, type ChangeRow, type HistoryRow, type Profile, type TaskRow } from '../lib/types'
 import { unwrap, useQuery } from '../lib/useQuery'
@@ -33,6 +34,7 @@ export function TaskPage() {
   const [busy, setBusy] = useState(false)
 
   const { data, error, loading, reload } = useQuery(async () => {
+    if (!isUuid(id)) return null
     const [task, history, changes, objects, executors] = await Promise.all([
       supabase.from('tasks').select(TASK_SELECT).eq('id', id).maybeSingle(),
       supabase
@@ -47,8 +49,12 @@ export function TaskPage() {
         .eq('task_id', id)
         .order('created_at', { ascending: true })
         .order('id', { ascending: true }),
-      supabase.from('objects').select('id, name').is('deleted_at', null).order('name'),
-      supabase.from('profiles').select('id, full_name, role').eq('role', 'executor').order('full_name'),
+      isManager
+        ? supabase.from('objects').select('id, name').is('deleted_at', null).order('name')
+        : Promise.resolve({ data: [], error: null }),
+      isManager
+        ? supabase.from('profiles').select('id, full_name, role').eq('role', 'executor').order('full_name')
+        : Promise.resolve({ data: [], error: null }),
     ])
     return {
       task: unwrap(task) as unknown as TaskRow | null,
@@ -57,7 +63,7 @@ export function TaskPage() {
       objects: unwrap(objects) as { id: string; name: string }[],
       executors: unwrap(executors) as Profile[],
     }
-  }, [id])
+  }, [id, isManager])
 
   if (loading && !data) return <p className="empty">Загрузка…</p>
   if (error) return <p className="error">{error}</p>
@@ -92,9 +98,19 @@ export function TaskPage() {
   }
 
   const remove = async () => {
-    const { error: err } = await supabase.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', task.id)
+    setBusy(true)
+    const { data: removed, error: err } = await supabase
+      .from('tasks')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', task.id)
+      .select('id')
+    setBusy(false)
     if (err) {
       setActionError(err.message)
+      return
+    }
+    if (!removed?.length) {
+      setActionError('Задача уже удалена или нет прав на удаление.')
       return
     }
     navigate(`/objects/${task.object_id}`, { replace: true })
@@ -150,7 +166,7 @@ export function TaskPage() {
         <div className="card confirm">
           <p>Удалить задачу «{task.title}»? Она попадёт в корзину вместе с историей, оттуда её можно восстановить.</p>
           <div className="actions">
-            <button className="btn danger-solid" onClick={() => void remove()}>
+            <button className="btn danger-solid" disabled={busy} onClick={() => void remove()}>
               Да, удалить
             </button>
             <button className="btn ghost" onClick={() => setMode('view')}>
@@ -189,7 +205,7 @@ export function TaskPage() {
         </dl>
       </section>
 
-      <TaskPhotos taskId={task.id} canUpload={canAddPhotos} canDelete={isManager && !isDeleted} />
+      <TaskPhotos key={task.id} taskId={task.id} canUpload={canAddPhotos} canDelete={isManager && !isDeleted} />
 
       {actions.length > 0 ? (
         <section className="card action-box">

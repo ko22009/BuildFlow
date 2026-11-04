@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
-import { Pagination, pageRange, usePage } from '../components/Pagination'
-import { TaskFilters, useTaskFilters } from '../components/TaskFilters'
+import { ObjectForm } from '../components/ObjectForm'
+import { Pagination } from '../components/Pagination'
+import { pageRange, usePage } from '../lib/paging'
+import { TaskFilters } from '../components/TaskFilters'
 import { TaskForm } from '../components/TaskForm'
 import { TaskList } from '../components/TaskList'
+import { isUuid } from '../lib/queryParams'
 import { supabase } from '../lib/supabase'
+import { useTaskFilters } from '../lib/useTaskFilters'
 import { TASK_SELECT, type ObjectRow, type Profile, type TaskRow } from '../lib/types'
 import { unwrap, useQuery } from '../lib/useQuery'
-import { ObjectForm } from './ObjectsPage'
 
 export function ObjectPage() {
   const { id = '' } = useParams()
@@ -19,15 +22,22 @@ export function ObjectPage() {
   const page = usePage()
   const [mode, setMode] = useState<'view' | 'edit' | 'task' | 'delete'>('view')
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const { data, error, loading, reload } = useQuery(async () => {
+    if (!isUuid(id)) return null
     const [object, tasks, executors] = await Promise.all([
       supabase.from('objects').select('*').eq('id', id).is('deleted_at', null).maybeSingle(),
       filters
-        .apply(supabase.from('tasks').select(TASK_SELECT, { count: 'exact' }).eq('object_id', id).is('deleted_at', null))
+        .apply(
+          supabase.from('tasks').select(TASK_SELECT, { count: 'exact' }).eq('object_id', id).is('deleted_at', null),
+          { withObject: false },
+        )
         .order('created_at', { ascending: false })
         .range(...pageRange(page)),
-      supabase.from('profiles').select('id, full_name, role').eq('role', 'executor').order('full_name'),
+      isManager
+        ? supabase.from('profiles').select('id, full_name, role').eq('role', 'executor').order('full_name')
+        : Promise.resolve({ data: [], error: null }),
     ])
     return {
       object: unwrap(object) as ObjectRow | null,
@@ -35,15 +45,25 @@ export function ObjectPage() {
       total: tasks.count ?? 0,
       executors: unwrap(executors) as Profile[],
     }
-  }, [id, page, filters.status, filters.assignee])
+  }, [id, page, filters.status, filters.assignee, isManager])
 
   const remove = async () => {
     setDeleteError(null)
-    const { error: err } = await supabase.from('objects').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    setBusy(true)
+    const { data: removed, error: err } = await supabase
+      .from('objects')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id')
+    setBusy(false)
     if (err) {
       setDeleteError(
         err.code === '23503' ? 'Нельзя удалить объект, на котором есть задачи. Сначала удалите задачи.' : err.message,
       )
+      return
+    }
+    if (!removed?.length) {
+      setDeleteError('Объект уже удалён или нет прав на удаление.')
       return
     }
     navigate('/objects', { replace: true })
@@ -54,6 +74,7 @@ export function ObjectPage() {
   if (!data?.object) return <p className="empty">Объект не найден или недоступен.</p>
 
   const { object, tasks, total, executors } = data
+  const filtersActive = Boolean(filters.status || filters.assignee)
 
   return (
     <>
@@ -100,7 +121,7 @@ export function ObjectPage() {
           <p>Удалить объект «{object.name}»? Он попадёт в корзину, оттуда его можно восстановить.</p>
           {deleteError ? <p className="error">{deleteError}</p> : null}
           <div className="actions">
-            <button className="btn danger-solid" onClick={() => void remove()}>
+            <button className="btn danger-solid" disabled={busy} onClick={() => void remove()}>
               Да, удалить
             </button>
             <button className="btn ghost" onClick={() => setMode('view')}>
@@ -130,7 +151,7 @@ export function ObjectPage() {
       <TaskList
         tasks={tasks}
         showAssignee={isManager}
-        emptyText={!filters.active ? 'На этом объекте пока нет задач.' : 'Под фильтр ничего не подходит.'}
+        emptyText={!filtersActive ? 'На этом объекте пока нет задач.' : 'Под фильтр ничего не подходит.'}
       />
       <Pagination total={total} />
     </>

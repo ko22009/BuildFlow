@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { login } from './helpers'
+import { login, USERS } from './helpers'
 
 // Полный путь задачи через интерфейс. Задача создаётся с уникальным названием «UI-тест …»
 // и в конце уходит в корзину (настоящее удаление запрещено; очистка: delete from public.tasks where title like 'UI-тест%').
@@ -16,7 +16,7 @@ test('задача проходит путь: создание, правка, р
   await manager.getByRole('button', { name: 'Новая задача' }).click()
   const form = manager.locator('form.card')
   await form.getByLabel('Название').fill(title)
-  await form.getByLabel('Исполнитель').selectOption({ label: 'Пётр Лебедев' })
+  await form.getByLabel('Исполнитель').selectOption({ label: USERS.executor.fullName })
   await form.getByRole('button', { name: 'Создать задачу' }).click()
   await manager.getByRole('link', { name: new RegExp(title) }).click()
   await expect(manager.getByRole('heading', { name: title })).toBeVisible()

@@ -1,37 +1,10 @@
-import { useSearchParams } from 'react-router-dom'
-import { STATUSES, STATUS_LABEL, type Status } from '../lib/status'
+import { STATUSES, STATUS_LABEL } from '../lib/status'
+import { useTaskFilters } from '../lib/useTaskFilters'
 import type { Profile } from '../lib/types'
 
 interface Props {
   executors?: Profile[]
   objects?: { id: string; name: string }[]
-}
-
-// Фильтры хранятся в адресной строке (?status=review&assignee=...), поэтому ссылками можно делиться.
-export function useTaskFilters() {
-  const [params, setParams] = useSearchParams()
-  const status = (params.get('status') as Status | null) ?? ''
-  const assignee = params.get('assignee') ?? ''
-  const object = params.get('object') ?? ''
-
-  const set = (key: string, value: string) => {
-    const next = new URLSearchParams(params)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    next.delete('page')
-    setParams(next, { replace: true })
-  }
-
-  // Фильтры применяются в запросе к базе, а не в браузере.
-  const apply = <Q extends { eq: (column: string, value: string) => Q }>(query: Q): Q => {
-    let q = query
-    if (status) q = q.eq('status', status)
-    if (assignee) q = q.eq('assignee_id', assignee)
-    if (object) q = q.eq('object_id', object)
-    return q
-  }
-
-  return { status, assignee, object, set, apply, active: Boolean(status || assignee || object) }
 }
 
 export function TaskFilters({ executors, objects }: Props) {

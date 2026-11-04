@@ -10,8 +10,8 @@ export default defineConfig({
         // Библиотеки в отдельных файлах: после правки приложения браузер берёт их из кэша.
         codeSplitting: {
           groups: [
-            { name: 'supabase', test: /node_modules[\/]@supabase/ },
-            { name: 'react', test: /node_modules[\/](react|react-dom|react-router|react-router-dom|scheduler)[\/]/ },
+            { name: 'supabase', test: /node_modules[/]@supabase/ },
+            { name: 'react', test: /node_modules[/](react|react-dom|react-router|react-router-dom|scheduler)[/]/ },
           ],
         },
       },

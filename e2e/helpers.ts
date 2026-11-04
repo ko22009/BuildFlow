@@ -2,8 +2,8 @@ import { expect, type Page } from '@playwright/test'
 
 // Демо-пользователи из supabase/seed.sql (локальная проверка собственного приложения).
 export const USERS = {
-  manager: { email: 'manager1@example.com', password: 'Demo-Manager-1' },
-  executor: { email: 'executor1@example.com', password: 'Demo-Executor-1' },
+  manager: { email: 'manager1@example.com', password: 'Demo-Manager-1', fullName: 'Ирина Соколова' },
+  executor: { email: 'executor1@example.com', password: 'Demo-Executor-1', fullName: 'Пётр Лебедев' },
 } as const
 
 export async function login(page: Page, who: keyof typeof USERS) {

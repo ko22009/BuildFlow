@@ -33,8 +33,10 @@ const e1 = await login('executor1')
 const e2 = await login('executor2')
 
 console.log('\n-- Без входа')
-check('anon не читает задачи', (await anon.from('tasks').select('id')).data?.length === 0 || denied(await anon.from('tasks').select('id')))
-check('anon не читает историю', (await anon.from('task_history').select('id')).data?.length === 0 || denied(await anon.from('task_history').select('id')))
+const anonTasks = await anon.from('tasks').select('id')
+check('anon не читает задачи', Boolean(anonTasks.error) || (anonTasks.data ?? []).length === 0)
+const anonHistory = await anon.from('task_history').select('id')
+check('anon не читает историю', Boolean(anonHistory.error) || (anonHistory.data ?? []).length === 0)
 const signup = await anon.auth.signUp({ email: `probe-${Date.now()}@example.com`, password: 'Probe-pass-123' })
 check('регистрация новых пользователей закрыта', signup.error?.code === 'signup_disabled', signup.error?.code ?? 'регистрация прошла')
 
@@ -42,13 +44,19 @@ console.log('\n-- Исполнитель видит только своё')
 const own = (await e1.client.from('tasks').select('id, assignee_id, status, title')).data ?? []
 check('исполнитель 1 видит только свои задачи', own.length > 0 && own.every((t) => t.assignee_id === e1.id), `${own.length} шт.`)
 const foreign = (await m.client.from('tasks').select('id').eq('assignee_id', e2.id).limit(1)).data?.[0]
+if (!foreign) throw new Error('В демо-данных нет задачи исполнителя 2: проверка чужих задач невозможна')
 const foreignRead = await e1.client.from('tasks').select('id').eq('id', foreign.id)
 check('чужую задачу по id не прочитать', (foreignRead.data ?? []).length === 0)
 const foreignHistory = await e1.client.from('task_history').select('id').eq('task_id', foreign.id)
 check('история чужой задачи недоступна', (foreignHistory.data ?? []).length === 0)
 const foreignObjects = (await e1.client.from('objects').select('id, name')).data ?? []
 const e2Objects = (await e2.client.from('objects').select('id, name')).data ?? []
-check('исполнитель 2 видит только объекты со своими задачами', e2Objects.length === 2, `${e2Objects.length} из 3`)
+const e2TaskObjects = new Set(((await e2.client.from('tasks').select('object_id')).data ?? []).map((t) => t.object_id))
+check(
+  'исполнитель 2 видит только объекты со своими задачами',
+  e2Objects.length > 0 && e2Objects.length === e2TaskObjects.size && e2Objects.every((o) => e2TaskObjects.has(o.id)),
+  `${e2Objects.length} объектов`,
+)
 
 console.log('\n-- Исполнитель: запрещённые действия')
 const newTask = own.find((t) => t.status === 'new')
@@ -109,7 +117,21 @@ check('удаление из журнала полей: ничего не уда
 check('исполнитель видит журнал полей своей задачи', ((await e1.client.from('task_changes').select('id').eq('task_id', tid)).data ?? []).length === 1)
 check('исполнитель 2 журнал чужой задачи не видит', ((await e2.client.from('task_changes').select('id').eq('task_id', tid)).data ?? []).length === 0)
 check('anon журнал полей не читает', denied(await anon.from('task_changes').select('id')) || ((await anon.from('task_changes').select('id')).data ?? []).length === 0)
-check('счётчики по статусам: исполнитель считает только своё', (((await e2.client.rpc('object_task_stats', { p_object_ids: [obj.id] })).data ?? []).every((r) => r.total > 0)))
+const statSum = async (client) =>
+  ((await client.rpc('object_task_stats', { p_object_ids: [obj.id] })).data ?? []).reduce((sum, row) => sum + row.total, 0)
+const ownCount = async (client) =>
+  (await client.from('tasks').select('id', { count: 'exact', head: true }).eq('object_id', obj.id)).count ?? 0
+const [e1Stats, e1Own, e2Stats, e2Own] = await Promise.all([
+  statSum(e1.client),
+  ownCount(e1.client),
+  statSum(e2.client),
+  ownCount(e2.client),
+])
+check(
+  'счётчики по статусам: исполнитель считает только своё',
+  e1Own > 0 && e1Stats === e1Own && e2Stats === e2Own,
+  `${e1Stats}/${e1Own}, ${e2Stats}/${e2Own}`,
+)
 
 console.log('\n-- Фото, корзина')
 check('фото: исполнитель 1 при доработке добавляет', !(await photoOf(e1.client, `${tid}/e1.png`, png, 'image/png')).error)

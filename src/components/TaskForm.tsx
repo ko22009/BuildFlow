@@ -44,11 +44,16 @@ export function TaskForm({ initial, objects, executors, assigneeLocked, objectLo
       due_date: dueDate || null,
     }
     const res = initial.id
-      ? await supabase.from('tasks').update(payload).eq('id', initial.id)
-      : await supabase.from('tasks').insert(payload)
+      ? await supabase.from('tasks').update(payload).eq('id', initial.id).select('id')
+      : await supabase.from('tasks').insert(payload).select('id')
     setBusy(false)
     if (res.error) {
       setError(res.error.message)
+      return
+    }
+    // update без .select() молча возвращает успех, даже если RLS не дала изменить строку.
+    if (!res.data?.length) {
+      setError('Задача не найдена или нет прав на изменение.')
       return
     }
     onDone()

@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
-import { Pagination, pageRange, usePage } from '../components/Pagination'
-import { STATUSES, STATUS_LABEL, STATUS_TONE, type Status } from '../lib/status'
+import { ObjectForm } from '../components/ObjectForm'
+import { Pagination } from '../components/Pagination'
+import { pageRange, usePage } from '../lib/paging'
+import { STATUSES, STATUS_LABEL, STATUS_TONE, localDateString, type Status } from '../lib/status'
 import { supabase } from '../lib/supabase'
 import type { ObjectRow } from '../lib/types'
 import { unwrap, useQuery } from '../lib/useQuery'
@@ -28,15 +30,19 @@ export function ObjectsPage() {
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range(...pageRange(page)),
-      supabase.from('tasks').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'review'),
+      isManager
+        ? supabase.from('tasks').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'review')
+        : Promise.resolve({ count: 0, error: null }),
     ])
     const rows = unwrap(objects) as ObjectRow[]
+    const ids = rows.map((o) => o.id)
     // Счётчики по статусам считает база, и только для объектов на этой странице.
+    // p_today передаём из браузера: часовой пояс у пользователя свой, дата сервера может отличаться.
     const stats = unwrap(
-      await supabase.rpc('object_task_stats', { p_object_ids: rows.map((o) => o.id) }),
+      await supabase.rpc('object_task_stats', { p_object_ids: ids, p_today: localDateString() }),
     ) as TaskStat[]
     return { objects: rows, total: objects.count ?? 0, stats, reviewCount: review.count ?? 0 }
-  }, [page])
+  }, [page, isManager])
 
   const reviewCount = data?.reviewCount ?? 0
 
@@ -112,57 +118,5 @@ export function ObjectsPage() {
       </ul>
       {data ? <Pagination total={data.total} /> : null}
     </>
-  )
-}
-
-interface ObjectFormProps {
-  id?: string
-  name?: string
-  address?: string
-  submitLabel: string
-  onDone: () => void
-  onCancel: () => void
-}
-
-export function ObjectForm({ id, name = '', address = '', submitLabel, onDone, onCancel }: ObjectFormProps) {
-  const { profile } = useAuth()
-  const [n, setN] = useState(name)
-  const [a, setA] = useState(address)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    const payload = { name: n.trim(), address: a.trim() }
-    const res = id
-      ? await supabase.from('objects').update(payload).eq('id', id)
-      : await supabase.from('objects').insert({ ...payload, created_by: profile?.id })
-    setBusy(false)
-    if (res.error) setError(res.error.message)
-    else onDone()
-  }
-
-  return (
-    <form className="form card" onSubmit={(e) => void submit(e)}>
-      <label>
-        Название
-        <input value={n} onChange={(e) => setN(e.target.value)} required maxLength={200} />
-      </label>
-      <label>
-        Адрес
-        <input value={a} onChange={(e) => setA(e.target.value)} required maxLength={300} />
-      </label>
-      {error ? <p className="error">{error}</p> : null}
-      <div className="actions">
-        <button className="btn primary" disabled={busy}>
-          {submitLabel}
-        </button>
-        <button type="button" className="btn ghost" onClick={onCancel}>
-          Отмена
-        </button>
-      </div>
-    </form>
   )
 }

@@ -7,7 +7,14 @@ interface AuthState {
   loading: boolean
   session: Session | null
   profile: Profile | null
+  profileError: string | null
   signOut: () => Promise<void>
+}
+
+interface ProfileState {
+  userId: string
+  profile: Profile | null
+  error: string | null
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -15,8 +22,9 @@ const AuthContext = createContext<AuthState | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [sessionReady, setSessionReady] = useState(false)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [profileReady, setProfileReady] = useState(false)
+  // Загруженный профиль помнит, для какого пользователя он получен:
+  // при смене пользователя старый профиль не показывается, а загрузка видна как loading.
+  const [profileState, setProfileState] = useState<ProfileState | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -30,35 +38,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Профиль грузим при смене пользователя, а не при каждом обновлении токена.
   const userId = session?.user.id ?? null
   useEffect(() => {
-    if (!sessionReady) return
-    if (!userId) {
-      setProfile(null)
-      setProfileReady(true)
-      return
-    }
+    if (!sessionReady || !userId) return
     let cancelled = false
-    setProfileReady(false)
     supabase
       .from('profiles')
       .select('id, full_name, role')
       .eq('id', userId)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
-        setProfile(data as Profile | null)
-        setProfileReady(true)
+        setProfileState({
+          userId,
+          profile: error ? null : (data as Profile | null),
+          error: error ? 'Не удалось загрузить профиль. Обновите страницу.' : null,
+        })
       })
     return () => {
       cancelled = true
     }
   }, [sessionReady, userId])
 
+  const current = userId && profileState?.userId === userId ? profileState : null
+  const profile = current?.profile ?? null
+  const profileError = current?.error ?? null
+  const profileReady = !userId || current !== null
+  const loading = !sessionReady || !profileReady
+
   const signOut = async () => {
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (!error) setProfileState(null)
   }
 
-  const loading = !sessionReady || !profileReady
-  return <AuthContext value={{ loading, session, profile, signOut }}>{children}</AuthContext>
+  return (
+    <AuthContext value={{ loading, session, profile, profileError, signOut }}>{children}</AuthContext>
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

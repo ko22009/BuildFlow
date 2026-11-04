@@ -45,3 +45,12 @@ test('фильтр по статусу уходит в запрос и в адр
   await expect(page.locator('.task-row').filter({ hasNotText: 'На проверке' })).toHaveCount(0)
   expect(queries.some((q) => q.get('status') === 'eq.review' && q.get('offset') === '0')).toBe(true)
 })
+
+test('страница вне диапазона возвращается к последней, а не оставляет пустой экран', async ({ page }) => {
+  await mockSupabase(page, 'manager', { tasks: TASKS })
+
+  await page.goto('/tasks?page=99')
+  await expect(page.getByText('Страница 3 из 3')).toBeVisible()
+  await expect(page).toHaveURL(/page=3/)
+  await expect(page.locator('.task-row')).toHaveCount(5)
+})

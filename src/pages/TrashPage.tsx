@@ -6,6 +6,7 @@ import { unwrap, useQuery } from '../lib/useQuery'
 
 export function TrashPage() {
   const [error, setError] = useState<string | null>(null)
+  const [busyKey, setBusyKey] = useState<string | null>(null)
 
   const { data, loading, reload, error: loadError } = useQuery(async () => {
     const [objects, tasks] = await Promise.all([
@@ -16,13 +17,27 @@ export function TrashPage() {
   }, [])
 
   const restore = async (table: 'objects' | 'tasks', id: string) => {
+    const key = `${table}:${id}`
     setError(null)
-    const { error: err } = await supabase.from(table).update({ deleted_at: null }).eq('id', id)
-    if (err) {
-      setError(err.message.includes('restore the object first') ? 'Сначала восстановите объект этой задачи.' : err.message)
-      return
+    setBusyKey(key)
+    try {
+      const { data: restored, error: err } = await supabase
+        .from(table)
+        .update({ deleted_at: null })
+        .eq('id', id)
+        .select('id')
+      if (err) {
+        setError(err.message.includes('restore the object first') ? 'Сначала восстановите объект этой задачи.' : err.message)
+        return
+      }
+      if (!restored?.length) {
+        setError('Не удалось восстановить: запись уже восстановлена или нет прав.')
+        return
+      }
+      reload()
+    } finally {
+      setBusyKey(null)
     }
-    reload()
   }
 
   if (loading && !data) return <p className="empty">Загрузка…</p>
@@ -50,8 +65,12 @@ export function TrashPage() {
                     <span>удалён {o.deleted_at ? formatDateTime(o.deleted_at) : ''}</span>
                   </span>
                 </div>
-                <button className="btn" onClick={() => void restore('objects', o.id)}>
-                  Восстановить
+                <button
+                  className="btn"
+                  disabled={busyKey !== null}
+                  onClick={() => void restore('objects', o.id)}
+                >
+                  {busyKey === `objects:${o.id}` ? 'Восстанавливаю…' : 'Восстановить'}
                 </button>
               </li>
             ))}
@@ -73,8 +92,12 @@ export function TrashPage() {
                     <span>удалена {t.deleted_at ? formatDateTime(t.deleted_at) : ''}</span>
                   </span>
                 </div>
-                <button className="btn" onClick={() => void restore('tasks', t.id)}>
-                  Восстановить
+                <button
+                  className="btn"
+                  disabled={busyKey !== null}
+                  onClick={() => void restore('tasks', t.id)}
+                >
+                  {busyKey === `tasks:${t.id}` ? 'Восстанавливаю…' : 'Восстановить'}
                 </button>
               </li>
             ))}

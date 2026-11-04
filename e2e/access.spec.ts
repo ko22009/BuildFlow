@@ -34,3 +34,12 @@ test('исполнитель видит только свои задачи и н
   await expect(page.getByRole('heading', { name: 'Мои задачи' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Выгрузить в CSV' })).toHaveCount(0)
 })
+
+test('битый id задачи: понятное сообщение вместо сырой ошибки базы', async ({ page }) => {
+  const queries: URLSearchParams[] = []
+  await mockSupabase(page, 'manager', { onTasksQuery: (q) => queries.push(q) })
+
+  await page.goto('/tasks/не-uuid')
+  await expect(page.getByText('Задача не найдена или недоступна.')).toBeVisible()
+  expect(queries.some((q) => q.get('id') === 'eq.не-uuid')).toBe(false)
+})

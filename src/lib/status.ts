@@ -43,14 +43,28 @@ export function actionsFor(role: Role, status: Status): StatusAction[] {
   return []
 }
 
+// Дата в местном часовом поясе, формат YYYY-MM-DD. toISOString() дал бы UTC:
+// в Екатеринбурге до 05:00 местного «сегодня» было бы вчерашним.
+export function localDateString(date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function isOverdue(dueDate: string | null, status: Status): boolean {
   if (!dueDate || status === 'done') return false
-  const today = new Date().toISOString().slice(0, 10)
-  return dueDate < today
+  return dueDate < localDateString()
 }
 
 export function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString('ru-RU')
+  // Дата без времени приходит как YYYY-MM-DD: new Date() понял бы её как UTC-полночь
+  // и в западных поясах показал бы предыдущий день.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value)
+  const date = dateOnly
+    ? new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)))
+    : new Date(value)
+  return date.toLocaleDateString('ru-RU')
 }
 
 export function formatDateTime(value: string): string {
