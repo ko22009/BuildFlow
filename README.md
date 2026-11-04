@@ -46,7 +46,7 @@
 Нужны Node.js 20+ и бесплатный проект Supabase.
 
 1. Создайте проект в Supabase. В Authentication → Sign In / Providers выключите «Allow new users to sign up».
-2. В SQL Editor по порядку выполните файлы из `supabase/migrations/` (четыре файла), затем `supabase/seed.sql` (один раз). Это создаст таблицы, правила, фото-хранилище и демо-данные.
+2. В SQL Editor по порядку выполните файлы из `supabase/migrations/` (пять файлов), затем `supabase/seed.sql` (один раз). Это создаст таблицы, правила, фото-хранилище и демо-данные.
 3. Скопируйте `.env.example` в `.env` и впишите адрес проекта и публичный ключ (Settings → API Keys, ключ `sb_publishable_...`).
 4. Запуск:
 
@@ -70,7 +70,7 @@ npm run check:rights
 ## Структура
 
 ```
-supabase/migrations/   таблицы, правила доступа, триггеры, корзина и фото
+supabase/migrations/   таблицы, правила доступа, триггеры, корзина, фото
 supabase/seed.sql      демо-пользователи, объекты и задачи
 scripts/check-rights.mjs   проверка защиты через API
 src/                   приложение (страницы, компоненты, работа со статусами)

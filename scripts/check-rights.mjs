@@ -35,7 +35,8 @@ const e2 = await login('executor2')
 console.log('\n-- Без входа')
 check('anon не читает задачи', (await anon.from('tasks').select('id')).data?.length === 0 || denied(await anon.from('tasks').select('id')))
 check('anon не читает историю', (await anon.from('task_history').select('id')).data?.length === 0 || denied(await anon.from('task_history').select('id')))
-check('регистрация новых пользователей закрыта', denied(await anon.auth.signUp({ email: `probe-${Date.now()}@example.com`, password: 'Probe-pass-123' })))
+const signup = await anon.auth.signUp({ email: `probe-${Date.now()}@example.com`, password: 'Probe-pass-123' })
+check('регистрация новых пользователей закрыта', signup.error?.code === 'signup_disabled', signup.error?.code ?? 'регистрация прошла')
 
 console.log('\n-- Исполнитель видит только своё')
 const own = (await e1.client.from('tasks').select('id, assignee_id, status, title')).data ?? []
