@@ -100,6 +100,17 @@ const hist = (await m.client.from('task_history').select('old_status, new_status
 check('история записана базой: 4 записи', hist.length === 4, hist.map((h) => `${h.old_status ?? '-'}>${h.new_status}`).join(', '))
 check('в истории автор действия верный', hist[3]?.changed_by === m.id && hist[3]?.comment === 'проверка')
 
+console.log('\n-- Журнал изменений полей')
+const changes = (await m.client.from('task_changes').select('id, field, old_value, new_value, changed_by').eq('task_id', tid)).data ?? []
+check('смена названия записана базой', changes.length === 1 && changes[0].field === 'title' && changes[0].new_value === 'Проверка прав (временная) 2' && changes[0].changed_by === m.id, `${changes.length} шт.`)
+check('вставка в журнал полей: отказ', denied(await m.client.from('task_changes').insert({ task_id: tid, changed_by: m.id, field: 'title', new_value: 'подделка' })))
+check('правка журнала полей: ничего не изменено', ((await m.client.from('task_changes').update({ new_value: 'подделка' }).eq('id', changes[0].id).select()).data ?? []).length === 0)
+check('удаление из журнала полей: ничего не удалено', ((await m.client.from('task_changes').delete().eq('id', changes[0].id).select()).data ?? []).length === 0)
+check('исполнитель видит журнал полей своей задачи', ((await e1.client.from('task_changes').select('id').eq('task_id', tid)).data ?? []).length === 1)
+check('исполнитель 2 журнал чужой задачи не видит', ((await e2.client.from('task_changes').select('id').eq('task_id', tid)).data ?? []).length === 0)
+check('anon журнал полей не читает', denied(await anon.from('task_changes').select('id')) || ((await anon.from('task_changes').select('id')).data ?? []).length === 0)
+check('счётчики по статусам: исполнитель считает только своё', (((await e2.client.rpc('object_task_stats', { p_object_ids: [obj.id] })).data ?? []).every((r) => r.total > 0)))
+
 console.log('\n-- Фото, корзина')
 check('фото: исполнитель 1 при доработке добавляет', !(await photoOf(e1.client, `${tid}/e1.png`, png, 'image/png')).error)
 check('фото: исполнитель 2 чужой задачи: отказ', denied(await photoOf(e2.client, `${tid}/e2.png`, png, 'image/png')))
