@@ -10,7 +10,7 @@
 
 ## Команды
 - `npm run dev` (порт 5173), `npm run build` (типы + сборка)
-- `npm test` (логика, без сети) и `npm run test:e2e` (интерфейс в Chrome, около 20 с; в основном на заглушке `e2e/mock.ts`, в настоящий Supabase ходят только вход с неверным паролем и тест `workflow`). Chrome в этой сети запускается с флагом `--disable-features=AsyncDns,UseDnsHttpsSvcb` (иначе паузы по 19 с, уже в `playwright.config.ts`). `workflow` оставляет задачу «UI-тест …» в корзине менеджера (очистка: `delete from public.tasks where title like 'UI-тест%'`).
+- `npm test` (логика, без сети) и `npm run test:e2e` (интерфейс в Chrome, около 20 с; в основном на заглушке `e2e/mock.ts`, в настоящий Supabase ходят только вход с неверным паролем и тест `workflow`). Chrome в этой сети запускается с флагом `--disable-features=AsyncDns,UseDnsHttpsSvcb`, а адрес Supabase ему подставляет Node (`--host-resolver-rules`): иначе паузы по 19 с (всё уже в `playwright.config.ts`). Запускать только `npm run test:e2e`: голый `npx playwright test` не видит `.env`, и тесты на заглушке падают. `workflow` оставляет задачу «UI-тест …» в корзине менеджера (очистка: `delete from public.tasks where title like 'UI-тест%'`).
 - `npm run check:rights`: проверка защиты через API под тремя пользователями, около 2 минут, нужен `.env`. Каждый прогон оставляет по одной временной задаче «Проверка прав» в корзине менеджера (удалить: `delete from public.tasks where title like 'Проверка прав%'` в SQL Editor).
 
 ## Устройство
