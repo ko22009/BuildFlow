@@ -10,6 +10,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // После ответа входа профиль ещё грузится: кнопка остаётся занятой, «Выйти» не мигает.
+  const wait = busy || (!!session && loading)
+
   if (session && profile) return <Navigate to="/" replace />
 
   const submit = async (e: FormEvent) => {
@@ -41,10 +44,10 @@ export function LoginPage() {
             {profileError ?? 'Для этой учётной записи не назначена роль. Обратитесь к администратору.'}
           </p>
         ) : null}
-        <button className="btn primary" disabled={busy}>
-          Войти
+        <button className="btn primary" disabled={wait}>
+          {wait ? 'Вход…' : 'Войти'}
         </button>
-        {session ? (
+        {session && !loading ? (
           <button type="button" className="btn ghost" onClick={() => void signOut()}>
             Выйти
           </button>
