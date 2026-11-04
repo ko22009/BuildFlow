@@ -1,3 +1,4 @@
+import { Loader } from './components/Loader'
 import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
@@ -11,7 +12,7 @@ import { TrashPage } from './pages/TrashPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { loading, session, profile } = useAuth()
-  if (loading) return <p className="empty" role="status">Загрузка…</p>
+  if (loading) return <Loader fullScreen />
   if (!session || !profile) return <Navigate to="/login" replace />
   return children
 }

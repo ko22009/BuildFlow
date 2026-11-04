@@ -1,3 +1,4 @@
+import { Loader } from '../components/Loader'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ErrorNotice } from '../components/ErrorNotice'
@@ -43,7 +44,7 @@ export function TrashPage() {
     }
   }
 
-  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
+  if (loading && !data) return <Loader />
   if (loadError) return <ErrorNotice text={loadError} onRetry={reload} />
   const empty = data && data.objects.length === 0 && data.tasks.length === 0
 

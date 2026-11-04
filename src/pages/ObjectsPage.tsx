@@ -1,3 +1,4 @@
+import { Loader } from '../components/Loader'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
@@ -77,7 +78,7 @@ export function ObjectsPage() {
         />
       ) : null}
 
-      {loading && !data ? <p className="empty" role="status">Загрузка…</p> : null}
+      {loading && !data ? <Loader /> : null}
       {error ? <ErrorNotice text={error} onRetry={reload} /> : null}
       {data && data.objects.length === 0 ? (
         <p className="empty">

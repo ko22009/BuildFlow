@@ -115,6 +115,38 @@ a {
 .empty.compact {
   padding: 4px 0 12px;
 }
+.loader {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 160px;
+  color: var(--muted);
+}
+.loader-screen {
+  min-height: 100dvh;
+}
+.loader-compact {
+  min-height: 96px;
+}
+.loader-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loader-spin 0.8s linear infinite;
+}
+@keyframes loader-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loader-spinner {
+    animation: none;
+  }
+}
 .error {
   color: var(--danger);
   display: flex;
@@ -141,6 +173,18 @@ a {
 }
 
 /* Каркас */
+.shell:has(.page > .loader) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.page:has(> .loader) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  padding-bottom: 24px;
+}
 .topbar {
   border-bottom: 1px solid var(--line);
   background: var(--surface);

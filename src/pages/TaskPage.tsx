@@ -1,3 +1,4 @@
+import { Loader } from '../components/Loader'
 import { useId, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
@@ -85,7 +86,7 @@ export function TaskPage() {
     }
   }, [id, isManager])
 
-  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
+  if (loading && !data) return <Loader />
   if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data?.task || !profile) return <p className="empty">Задача не найдена или недоступна.</p>
 

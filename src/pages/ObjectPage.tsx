@@ -1,3 +1,4 @@
+import { Loader } from '../components/Loader'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
@@ -70,7 +71,7 @@ export function ObjectPage() {
     navigate('/objects', { replace: true })
   }
 
-  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
+  if (loading && !data) return <Loader />
   if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data?.object) return <p className="empty">Объект не найден или недоступен.</p>
 

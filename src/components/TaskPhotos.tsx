@@ -1,3 +1,4 @@
+import { Loader } from './Loader'
 import { useEffect, useRef, useState } from 'react'
 import { humanError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
@@ -143,7 +144,7 @@ export function TaskPhotos({ taskId, canUpload, canDelete, uploadHint }: Props) 
   return (
     <section>
       <h2>Фото</h2>
-      {!loaded ? <p className="empty compact" role="status">Загрузка…</p> : null}
+      {!loaded ? <Loader compact /> : null}
       {loaded && photos.length === 0 ? <p className="empty compact">Фото пока нет.</p> : null}
       <ul className="photos">
         {photos.map((p, index) => (

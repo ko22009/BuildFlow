@@ -1,3 +1,4 @@
+import { Loader } from '../components/Loader'
 import { useState } from 'react'
 import { useAuth } from '../auth'
 import { ErrorNotice } from '../components/ErrorNotice'
@@ -73,7 +74,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
     }
   }
 
-  if (loading && !data) return <p className="empty" role="status">Загрузка…</p>
+  if (loading && !data) return <Loader />
   if (error) return <ErrorNotice text={error} onRetry={reload} />
   if (!data) return null
 
