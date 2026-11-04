@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
+import { Pagination, pageRange, usePage } from '../components/Pagination'
 import { TaskFilters, useTaskFilters } from '../components/TaskFilters'
 import { TaskForm } from '../components/TaskForm'
 import { TaskList } from '../components/TaskList'
@@ -15,26 +16,26 @@ export function ObjectPage() {
   const isManager = profile?.role === 'manager'
   const navigate = useNavigate()
   const filters = useTaskFilters()
+  const page = usePage()
   const [mode, setMode] = useState<'view' | 'edit' | 'task' | 'delete'>('view')
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data, error, loading, reload } = useQuery(async () => {
     const [object, tasks, executors] = await Promise.all([
       supabase.from('objects').select('*').eq('id', id).is('deleted_at', null).maybeSingle(),
-      supabase
-        .from('tasks')
-        .select(TASK_SELECT)
-        .eq('object_id', id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false }),
+      filters
+        .apply(supabase.from('tasks').select(TASK_SELECT, { count: 'exact' }).eq('object_id', id).is('deleted_at', null))
+        .order('created_at', { ascending: false })
+        .range(...pageRange(page)),
       supabase.from('profiles').select('id, full_name, role').eq('role', 'executor').order('full_name'),
     ])
     return {
       object: unwrap(object) as ObjectRow | null,
       tasks: unwrap(tasks) as unknown as TaskRow[],
+      total: tasks.count ?? 0,
       executors: unwrap(executors) as Profile[],
     }
-  }, [id])
+  }, [id, page, filters.status, filters.assignee])
 
   const remove = async () => {
     setDeleteError(null)
@@ -52,8 +53,7 @@ export function ObjectPage() {
   if (error) return <p className="error">{error}</p>
   if (!data?.object) return <p className="empty">Объект не найден или недоступен.</p>
 
-  const { object, tasks, executors } = data
-  const visible = filters.apply(tasks)
+  const { object, tasks, total, executors } = data
 
   return (
     <>
@@ -128,10 +128,11 @@ export function ObjectPage() {
       <h2>Задачи</h2>
       <TaskFilters executors={isManager ? executors : undefined} />
       <TaskList
-        tasks={visible}
+        tasks={tasks}
         showAssignee={isManager}
-        emptyText={tasks.length === 0 ? 'На этом объекте пока нет задач.' : 'Под фильтр ничего не подходит.'}
+        emptyText={!filters.active ? 'На этом объекте пока нет задач.' : 'Под фильтр ничего не подходит.'}
       />
+      <Pagination total={total} />
     </>
   )
 }

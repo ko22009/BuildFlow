@@ -1,31 +1,44 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
-import { STATUSES, STATUS_LABEL, STATUS_TONE, isOverdue, type Status } from '../lib/status'
+import { Pagination, pageRange, usePage } from '../components/Pagination'
+import { STATUSES, STATUS_LABEL, STATUS_TONE, type Status } from '../lib/status'
 import { supabase } from '../lib/supabase'
 import type { ObjectRow } from '../lib/types'
 import { unwrap, useQuery } from '../lib/useQuery'
 
-interface TaskBrief {
+interface TaskStat {
   object_id: string
   status: Status
-  due_date: string | null
+  total: number
+  overdue: number
 }
 
 export function ObjectsPage() {
   const { profile } = useAuth()
   const isManager = profile?.role === 'manager'
   const [adding, setAdding] = useState(false)
+  const page = usePage()
 
   const { data, error, loading, reload } = useQuery(async () => {
-    const [objects, tasks] = await Promise.all([
-      supabase.from('objects').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-      supabase.from('tasks').select('object_id, status, due_date').is('deleted_at', null),
+    const [objects, review] = await Promise.all([
+      supabase
+        .from('objects')
+        .select('*', { count: 'exact' })
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(...pageRange(page)),
+      supabase.from('tasks').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'review'),
     ])
-    return { objects: unwrap(objects) as ObjectRow[], tasks: unwrap(tasks) as TaskBrief[] }
-  }, [])
+    const rows = unwrap(objects) as ObjectRow[]
+    // Счётчики по статусам считает база, и только для объектов на этой странице.
+    const stats = unwrap(
+      await supabase.rpc('object_task_stats', { p_object_ids: rows.map((o) => o.id) }),
+    ) as TaskStat[]
+    return { objects: rows, total: objects.count ?? 0, stats, reviewCount: review.count ?? 0 }
+  }, [page])
 
-  const reviewCount = data?.tasks.filter((t) => t.status === 'review').length ?? 0
+  const reviewCount = data?.reviewCount ?? 0
 
   return (
     <>
@@ -66,17 +79,18 @@ export function ObjectsPage() {
 
       <ul className="cards">
         {data?.objects.map((o) => {
-          const own = data.tasks.filter((t) => t.object_id === o.id)
-          const overdue = own.filter((t) => isOverdue(t.due_date, t.status)).length
+          const own = data.stats.filter((s) => s.object_id === o.id)
+          const taskCount = own.reduce((sum, s) => sum + s.total, 0)
+          const overdue = own.reduce((sum, s) => sum + s.overdue, 0)
           return (
             <li key={o.id}>
               <Link to={`/objects/${o.id}`} className="card object-card">
                 <b>{o.name}</b>
                 <span className="muted">{o.address}</span>
                 <span className="chips">
-                  {own.length === 0 ? <span className="muted">Задач нет</span> : null}
+                  {taskCount === 0 ? <span className="muted">Задач нет</span> : null}
                   {STATUSES.map((s) => {
-                    const n = own.filter((t) => t.status === s).length
+                    const n = own.find((x) => x.status === s)?.total ?? 0
                     return n ? (
                       <span key={s} className={`badge s-${STATUS_TONE[s]}`}>
                         {STATUS_LABEL[s]}
@@ -96,6 +110,7 @@ export function ObjectsPage() {
           )
         })}
       </ul>
+      {data ? <Pagination total={data.total} /> : null}
     </>
   )
 }

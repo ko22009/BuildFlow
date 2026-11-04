@@ -39,5 +39,16 @@ export interface HistoryRow {
   changer: { full_name: string } | null
 }
 
+export type ChangedField = 'title' | 'description' | 'due_date' | 'object' | 'assignee'
+
+export interface ChangeRow {
+  id: number
+  field: ChangedField
+  old_value: string | null
+  new_value: string | null
+  created_at: string
+  changer: { full_name: string } | null
+}
+
 export const TASK_SELECT =
   '*, object:objects(name), assignee:profiles!assignee_id(full_name), author:profiles!author_id(full_name)'

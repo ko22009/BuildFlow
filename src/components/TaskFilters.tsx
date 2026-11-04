@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import { STATUSES, STATUS_LABEL, type Status } from '../lib/status'
-import type { Profile, TaskRow } from '../lib/types'
+import type { Profile } from '../lib/types'
 
 interface Props {
   executors?: Profile[]
@@ -18,18 +18,20 @@ export function useTaskFilters() {
     const next = new URLSearchParams(params)
     if (value) next.set(key, value)
     else next.delete(key)
+    next.delete('page')
     setParams(next, { replace: true })
   }
 
-  const apply = (tasks: TaskRow[]) =>
-    tasks.filter(
-      (t) =>
-        (!status || t.status === status) &&
-        (!assignee || t.assignee_id === assignee) &&
-        (!object || t.object_id === object),
-    )
+  // Фильтры применяются в запросе к базе, а не в браузере.
+  const apply = <Q extends { eq: (column: string, value: string) => Q }>(query: Q): Q => {
+    let q = query
+    if (status) q = q.eq('status', status)
+    if (assignee) q = q.eq('assignee_id', assignee)
+    if (object) q = q.eq('object_id', object)
+    return q
+  }
 
-  return { status, assignee, object, set, apply }
+  return { status, assignee, object, set, apply, active: Boolean(status || assignee || object) }
 }
 
 export function TaskFilters({ executors, objects }: Props) {

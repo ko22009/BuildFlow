@@ -6,8 +6,21 @@ import { TaskForm } from '../components/TaskForm'
 import { TaskPhotos } from '../components/TaskPhotos'
 import { actionsFor, formatDate, formatDateTime, isOverdue, type Status } from '../lib/status'
 import { supabase } from '../lib/supabase'
-import { TASK_SELECT, type HistoryRow, type Profile, type TaskRow } from '../lib/types'
+import { TASK_SELECT, type ChangedField, type ChangeRow, type HistoryRow, type Profile, type TaskRow } from '../lib/types'
 import { unwrap, useQuery } from '../lib/useQuery'
+
+const FIELD_LABEL: Record<ChangedField, string> = {
+  title: 'Название',
+  description: 'Описание',
+  due_date: 'Срок',
+  object: 'Объект',
+  assignee: 'Исполнитель',
+}
+
+function showValue(field: ChangedField, value: string | null): string {
+  if (!value) return field === 'due_date' ? 'не задан' : 'пусто'
+  return field === 'due_date' ? formatDate(value) : value
+}
 
 export function TaskPage() {
   const { id = '' } = useParams()
@@ -20,11 +33,17 @@ export function TaskPage() {
   const [busy, setBusy] = useState(false)
 
   const { data, error, loading, reload } = useQuery(async () => {
-    const [task, history, objects, executors] = await Promise.all([
+    const [task, history, changes, objects, executors] = await Promise.all([
       supabase.from('tasks').select(TASK_SELECT).eq('id', id).maybeSingle(),
       supabase
         .from('task_history')
         .select('id, old_status, new_status, comment, created_at, changer:profiles!changed_by(full_name)')
+        .eq('task_id', id)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
+      supabase
+        .from('task_changes')
+        .select('id, field, old_value, new_value, created_at, changer:profiles!changed_by(full_name)')
         .eq('task_id', id)
         .order('created_at', { ascending: true })
         .order('id', { ascending: true }),
@@ -34,6 +53,7 @@ export function TaskPage() {
     return {
       task: unwrap(task) as unknown as TaskRow | null,
       history: unwrap(history) as unknown as HistoryRow[],
+      changes: unwrap(changes) as unknown as ChangeRow[],
       objects: unwrap(objects) as { id: string; name: string }[],
       executors: unwrap(executors) as Profile[],
     }
@@ -43,7 +63,7 @@ export function TaskPage() {
   if (error) return <p className="error">{error}</p>
   if (!data?.task || !profile) return <p className="empty">Задача не найдена или недоступна.</p>
 
-  const { task, history, objects, executors } = data
+  const { task, history, changes, objects, executors } = data
   const isDeleted = task.deleted_at !== null
   const actions = isDeleted ? [] : actionsFor(profile.role, task.status)
   const canAddPhotos = !isDeleted && (isManager || task.status === 'in_progress' || task.status === 'rework')
@@ -214,6 +234,29 @@ export function TaskPage() {
           ))}
         </ol>
       </section>
+
+      {changes.length > 0 ? (
+        <section>
+          <h2>Изменения полей</h2>
+          <ol className="history">
+            {changes.map((c) => (
+              <li key={c.id}>
+                <div className="history-head">
+                  <b>{FIELD_LABEL[c.field]}</b>
+                </div>
+                <p className="change">
+                  <span className="old-value">{showValue(c.field, c.old_value)}</span>
+                  <span aria-hidden="true"> → </span>
+                  <span>{showValue(c.field, c.new_value)}</span>
+                </p>
+                <div className="muted">
+                  {c.changer?.full_name} · {formatDateTime(c.created_at)}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
     </>
   )
 }
