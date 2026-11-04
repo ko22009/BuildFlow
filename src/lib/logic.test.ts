@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PAGE_SIZE, pageRange } from './paging'
-import { tasksToCsv } from './csv'
+import { TASK_COLUMNS, tasksToSheet } from './xlsx'
 import { isUuid, parseStatus } from './queryParams'
 import { actionsFor, formatDate, isOverdue } from './status'
 import type { TaskRow } from './types'
@@ -63,32 +63,33 @@ describe('страницы списка', () => {
   })
 })
 
-describe('выгрузка в CSV', () => {
-  it('BOM, разделитель «;», экранирование кавычек и переносов', () => {
-    const task = {
-      title: 'Залить "фундамент"; секция 2',
-      object: { name: 'Дом\nА' },
-      assignee: { full_name: 'Иван' },
-      status: 'review',
-      due_date: null,
-      author: { full_name: 'Мария' },
-      created_at: '2026-11-04T10:00:00Z',
-    } as unknown as TaskRow
-    const csv = tasksToCsv([task])
-    expect(csv.startsWith('﻿Задача;Объект;')).toBe(true)
-    expect(csv).toContain('"Залить ""фундамент""; секция 2";"Дом\nА";Иван;На проверке;;Мария;2026-11-04')
+describe('выгрузка в Excel', () => {
+  const task = {
+    title: '=1+1',
+    object: { name: 'Дом А' },
+    assignee: null,
+    status: 'review',
+    due_date: '2026-11-07',
+    author: { full_name: 'Мария' },
+    created_at: '2026-11-04T10:00:00',
+  } as unknown as TaskRow
+
+  it('заголовки жирные, срок и дата создания настоящие даты без сдвига дня', () => {
+    const [head, row] = tasksToSheet([task])
+    expect(head[0]).toEqual({ value: 'Задача', fontWeight: 'bold' })
+    expect(row[3]).toBe('На проверке')
+    expect(row[4]).toEqual({ value: new Date(Date.UTC(2026, 10, 7)), format: 'dd.mm.yyyy' })
+    expect(row[6]).toEqual({ value: new Date(Date.UTC(2026, 10, 4)), format: 'dd.mm.yyyy' })
   })
 
-  it('ячейка с формулой не выполнится в Excel', () => {
-    const task = {
-      title: '=1+1',
-      object: null,
-      assignee: null,
-      status: 'new',
-      due_date: null,
-      author: null,
-      created_at: '2026-11-04T10:00:00Z',
-    } as unknown as TaskRow
-    expect(tasksToCsv([task])).toContain("'=1+1")
+  it('пустые значения остаются пустыми ячейками, текст с «=» остаётся текстом', () => {
+    const [, row] = tasksToSheet([{ ...task, due_date: null }])
+    expect(row[0]).toBe('=1+1')
+    expect(row[2]).toBeNull()
+    expect(row[4]).toBeNull()
+  })
+
+  it('на каждый столбец задана ширина', () => {
+    expect(TASK_COLUMNS).toHaveLength(tasksToSheet([])[0].length)
   })
 })

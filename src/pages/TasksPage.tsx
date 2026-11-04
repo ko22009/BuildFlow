@@ -4,7 +4,7 @@ import { Pagination } from '../components/Pagination'
 import { pageRange, usePage } from '../lib/paging'
 import { TaskFilters } from '../components/TaskFilters'
 import { TaskList } from '../components/TaskList'
-import { downloadCsv, tasksToCsv } from '../lib/csv'
+import { downloadTasksXlsx } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
 import { TASK_SELECT, type Profile, type TaskRow } from '../lib/types'
 import { useTaskFilters } from '../lib/useTaskFilters'
@@ -46,7 +46,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
     [page, filters.status, filters.assignee, filters.object, mine],
   )
 
-  const exportCsv = async () => {
+  const exportXlsx = async () => {
     setExportError(null)
     setExporting(true)
     try {
@@ -60,7 +60,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
         all.push(...(res.data as unknown as TaskRow[]))
         if (res.data.length < EXPORT_CHUNK) break
       }
-      downloadCsv('zadachi.csv', tasksToCsv(all))
+      await downloadTasksXlsx('zadachi.xlsx', all)
     } finally {
       setExporting(false)
     }
@@ -80,8 +80,8 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
           <p className="muted">{filters.active ? `Найдено задач: ${data.total}` : `Всего задач: ${data.total}`}</p>
         </div>
         {isManager ? (
-          <button className="btn ghost" disabled={data.total === 0 || exporting} onClick={() => void exportCsv()}>
-            {exporting ? 'Выгрузка…' : 'Выгрузить в CSV'}
+          <button className="btn ghost" disabled={data.total === 0 || exporting} onClick={() => void exportXlsx()}>
+            {exporting ? 'Выгрузка…' : 'Выгрузить в Excel'}
           </button>
         ) : null}
       </div>

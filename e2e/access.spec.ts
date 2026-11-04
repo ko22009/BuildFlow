@@ -32,7 +32,7 @@ test('исполнитель видит только свои задачи и н
 
   await nav.getByRole('link', { name: 'Мои задачи' }).click()
   await expect(page.getByRole('heading', { name: 'Мои задачи' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Выгрузить в CSV' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Выгрузить в Excel' })).toHaveCount(0)
 })
 
 test('битый id задачи: понятное сообщение вместо сырой ошибки базы', async ({ page }) => {
